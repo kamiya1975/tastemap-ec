@@ -1,12 +1,13 @@
 // src/App.jsx
 import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import MapPage from './MapPage.jsx';
 
 function App() {
   return (
-    <div>
-      <MapPage />
-    </div>
+    <Routes>
+      <Route path="/" element={<MapPage />} />
+    </Routes>
   );
 }
 
