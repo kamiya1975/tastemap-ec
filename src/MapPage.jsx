@@ -1,3 +1,4 @@
+// src/MapPage.jsx
 import React, { useEffect, useState } from 'react';
 import Papa from 'papaparse';
 
@@ -6,8 +7,8 @@ function MapPage() {
 
   useEffect(() => {
     fetch('/Merged_TasteDataDB15.csv')
-      .then(response => response.text())
-      .then(csvText => {
+      .then((response) => response.text())
+      .then((csvText) => {
         Papa.parse(csvText, {
           header: true,
           dynamicTyping: true,
@@ -19,7 +20,7 @@ function MapPage() {
   }, []);
 
   return (
-    <div>
+    <div style={{ padding: '20px' }}>
       <h1>読み込んだデータ件数: {data.length}</h1>
     </div>
   );
