@@ -1,37 +1,9 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import Papa from 'papaparse';
 
-function useResizeObserver(ref, callback) {
-  useEffect(() => {
-    if (!ref.current) return;
-
-    const handleResize = () => {
-      requestAnimationFrame(() => callback());
-    };
-
-    const observer = new ResizeObserver(handleResize);
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [ref, callback]);
-}
-
 function MapPage() {
   const [data, setData] = useState([]);
-  const plotWrapperRef = useRef(null);
-  const [plotSize, setPlotSize] = useState({ width: 600, height: 600 });
-
-  const updateSize = () => {
-    if (plotWrapperRef.current) {
-      const { width, height } = plotWrapperRef.current.getBoundingClientRect();
-      setPlotSize({
-        width: width > 0 ? width : 600,
-        height: height > 0 ? height : 500,
-      });
-    }
-  };
-
-  useResizeObserver(plotWrapperRef, updateSize);
 
   useEffect(() => {
     const loadData = async () => {
@@ -52,9 +24,6 @@ function MapPage() {
     };
 
     loadData();
-
-    // 初回のサイズ取得
-    setTimeout(updateSize, 100);
   }, []);
 
   const colorMap = {
@@ -73,31 +42,32 @@ function MapPage() {
   });
 
   return (
-    <div style={{ padding: '1rem' }}>
+    <div style={{ padding: '1rem', width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
       <h2 style={{ textAlign: 'center' }}>ワインマップ（UMAP表示）</h2>
-      <div ref={plotWrapperRef} style={{ width: '100%', minHeight: '70vh' }}>
+      <div style={{ width: '100%', height: '600px' }}>
         <Plot
           data={Object.keys(grouped).map((type) => ({
             x: grouped[type].map((d) => d.UMAP1),
             y: grouped[type].map((d) => d.UMAP2),
-            text: grouped[type].map((d) => d.商品名),
+            text: grouped[type].map((d) => `${d.商品名}（${d.希望小売価格}円）`),
             mode: 'markers',
             type: 'scatter',
             name: type,
             marker: {
               size: 10,
-              color: colorMap[type],
-              opacity: 0.7,
+              color: colorMap[type] || 'gray',
+              opacity: 0.75,
             },
           }))}
           layout={{
             autosize: false,
-            width: plotSize.width,
-            height: plotSize.height,
+            width: undefined,
+            height: 600, // 👈 高さを固定
             margin: { t: 30, l: 30, r: 30, b: 30 },
             legend: { orientation: 'h' },
           }}
           config={{ responsive: true }}
+          style={{ width: '100%', height: '100%' }}
         />
       </div>
     </div>
