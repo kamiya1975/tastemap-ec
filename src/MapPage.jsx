@@ -1,4 +1,3 @@
-// src/MapPage.js
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import Papa from 'papaparse';
@@ -9,15 +8,6 @@ function MapPage() {
   const [xRange, setXRange] = useState([0, 10]);
   const [yRange, setYRange] = useState([0, 10]);
 
-  // Typeごとの色
-  const typeColorMap = {
-    Red: 'red',
-    White: 'green',
-    Spa: 'blue',
-    Rose: 'pink',
-    unknown: 'gray',
-  };
-
   useEffect(() => {
     fetch("/Merged_TasteDataDB15.csv")
       .then((response) => response.text())
@@ -26,7 +16,10 @@ function MapPage() {
           header: true,
           dynamicTyping: true,
           complete: (results) => {
-            const parsed = results.data.filter(row => row.UMAP1 !== undefined && row.UMAP2 !== undefined);
+            const parsed = results.data.filter(
+              row => row.UMAP1 !== undefined && row.UMAP2 !== undefined
+            );
+            console.log("✅ CSV列名:", Object.keys(parsed[0]));
             setData(parsed);
             computeContour(parsed);
           },
@@ -69,26 +62,27 @@ function MapPage() {
       <h2>ワインマップ（UMAP + 甘味 等高線）</h2>
       <Plot
         data={[
-          // Type別バブル
-          ...Object.entries(typeColorMap).map(([type, color]) => {
-            const filtered = data.filter(d => (d.Type || 'unknown') === type);
-            return {
-              x: filtered.map(d => d.UMAP1),
-              y: filtered.map(d => d.UMAP2),
-              mode: 'markers',
-              type: 'scatter',
-              name: type,
-              marker: { color, size: 8, opacity: 0.8 },
-            };
-          }),
-          // 等高線
+          // ✅ グレー打点（Type問わず）
+          {
+            x: data.map(d => d.UMAP1),
+            y: data.map(d => d.UMAP2),
+            mode: 'markers',
+            type: 'scatter',
+            name: 'All Wines',
+            marker: { color: 'gray', size: 7, opacity: 0.8 },
+          },
+          // ✅ 甘味等高線
           {
             z: contourZ,
             type: 'contour',
             colorscale: 'YlOrRd',
             contours: { coloring: 'heatmap' },
-            x: Array.from({ length: contourZ[0]?.length || 0 }, (_, i) => xRange[0] + i * (xRange[1] - xRange[0]) / (contourZ[0].length)),
-            y: Array.from({ length: contourZ.length }, (_, j) => yRange[0] + j * (yRange[1] - yRange[0]) / (contourZ.length)),
+            x: Array.from({ length: contourZ[0]?.length || 0 }, (_, i) =>
+              xRange[0] + i * (xRange[1] - xRange[0]) / (contourZ[0].length)
+            ),
+            y: Array.from({ length: contourZ.length }, (_, j) =>
+              yRange[0] + j * (yRange[1] - yRange[0]) / (contourZ.length)
+            ),
             showscale: false,
             opacity: 0.5,
           },
