@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import { Link } from 'react-router-dom';
 import Papa from 'papaparse';
+import { Link } from 'react-router-dom';
 
 function MapPage() {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    const loadCSV = async () => {
+    const loadData = async () => {
       const wineRes = await fetch('/wine_data.csv');
       const wineText = await wineRes.text();
       const wineParsed = Papa.parse(wineText, { header: true }).data;
@@ -18,7 +18,9 @@ function MapPage() {
 
       const typeMap = {};
       typeParsed.forEach((d) => {
-        if (d.JAN) typeMap[d.JAN.trim()] = d.Type?.trim().toLowerCase() || 'unknown';
+        if (d.JAN) {
+          typeMap[d.JAN.trim()] = d.Type?.trim().toLowerCase() || 'unknown';
+        }
       });
 
       const merged = wineParsed
@@ -34,15 +36,7 @@ function MapPage() {
       setData(merged);
     };
 
-    loadCSV();
-  }, []);
-
-  // ✅ 初回ロード後に Plotly を強制リサイズ
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      window.dispatchEvent(new Event('resize'));
-    }, 300);
-    return () => clearTimeout(timer);
+    loadData();
   }, []);
 
   const colorMap = {
@@ -61,9 +55,9 @@ function MapPage() {
   });
 
   return (
-    <div style={{ padding: '1rem', width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
+    <div style={{ padding: '20px', width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
       <h2 style={{ textAlign: 'center', fontSize: '22px' }}>ワインマップ（UMAP表示）</h2>
-      <div style={{ width: '100%', height: '70vh', position: 'relative' }}>
+      <div style={{ width: '100%', height: '70vh' }}>
         <Plot
           data={Object.keys(grouped).map((type) => ({
             x: grouped[type].map((d) => d.UMAP1),
@@ -71,7 +65,7 @@ function MapPage() {
             text: grouped[type].map((d) => `${d.商品名}（${d.希望小売価格}円）`),
             mode: 'markers',
             type: 'scatter',
-            name: type.toUpperCase(),
+            name: type,
             marker: {
               size: 10,
               color: colorMap[type] || 'gray',
@@ -82,20 +76,14 @@ function MapPage() {
             autosize: true,
             margin: { t: 30, l: 30, r: 30, b: 30 },
             showlegend: true,
-            legend: {
-              orientation: 'h',
-              yanchor: 'bottom',
-              y: -0.3,
-              xanchor: 'center',
-              x: 0.5,
-            },
+            legend: { orientation: 'h' },
           }}
           style={{ width: '100%', height: '100%' }}
           useResizeHandler={true}
           config={{ responsive: true }}
         />
       </div>
-      <div style={{ textAlign: 'right', marginTop: '1rem' }}>
+      <div style={{ textAlign: 'right', marginTop: '12px' }}>
         <Link to="/" style={{ color: 'blue' }}>← トップへ戻る</Link>
       </div>
     </div>
