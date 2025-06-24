@@ -1,3 +1,4 @@
+// src/MapPage.js
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import Papa from 'papaparse';
@@ -8,35 +9,87 @@ function MapPage() {
   const [xRange, setXRange] = useState([0, 10]);
   const [yRange, setYRange] = useState([0, 10]);
 
+  const typeColorMap = {
+    Red: 'red',
+    White: 'green',
+    Rose: 'pink',
+    Spa: 'blue',
+    unknown: 'gray',
+  };
+
+  const normalizeType = (t) => {
+    if (!t || typeof t !== 'string') return 'unknown';
+    if (t.includes('赤')) return 'Red';
+    if (t.includes('白')) return 'White';
+    if (t.includes('ロゼ')) return 'Rose';
+    if (t.includes('泡') || t.includes('スパー')) return 'Spa';
+    return t;
+  };
+
   useEffect(() => {
-    fetch("/Merged_TasteDataDB15.csv")
-      .then((response) => response.text())
-      .then((csvText) => {
-        Papa.parse(csvText, {
-          header: true,
-          dynamicTyping: true,
-          complete: (results) => {
-            const parsed = results.data.filter(
-              row => row.UMAP1 !== undefined && row.UMAP2 !== undefined
-            );
-            console.log("✅ CSV列名:", Object.keys(parsed[0]));
-            setData(parsed);
-            computeContour(parsed);
-          },
-        });
+    Promise.all([
+      fetch("/wine_data.csv").then(res => res.text()),
+      fetch("/Merged_TasteDataDB15.csv").then(res => res.text())
+    ]).then(([wineText, mergedText]) => {
+      Papa.parse(wineText, {
+        header: true,
+        dynamicTyping: true,
+        complete: (wineResult) => {
+          Papa.parse(mergedText, {
+            header: true,
+            dynamicTyping: true,
+            complete: (mergedResult) => {
+              const wineMap = {};
+              wineResult.data.forEach(row => {
+                wineMap[row.JAN] = row;
+              });
+
+              const features = ["ブドウ糖", "果糖", "グリセリン"];
+              const validData = mergedResult.data.filter(row =>
+                row.JAN in wineMap &&
+                features.every(f => row[f] !== undefined && !isNaN(row[f]))
+              );
+
+              const zStats = {};
+              features.forEach(f => {
+                const vals = validData.map(d => parseFloat(d[f]));
+                const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+                const std = Math.sqrt(vals.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / vals.length);
+                zStats[f] = { mean, std };
+              });
+
+              const combined = validData.map(row => {
+                const wine = wineMap[row.JAN];
+                const z = features.reduce((sum, f) => {
+                  const value = parseFloat(row[f]);
+                  const { mean, std } = zStats[f];
+                  return sum + ((value - mean) / std);
+                }, 0);
+
+                return {
+                  JAN: row.JAN,
+                  UMAP1: wine.UMAP1,
+                  UMAP2: wine.UMAP2,
+                  Type: normalizeType(row.Type),
+                  z,
+                };
+              });
+
+              setData(combined);
+              computeContour(combined);
+            }
+          });
+        }
       });
+    });
   }, []);
 
   const computeContour = (parsed) => {
+    const gridSize = 100;
     const x = parsed.map(d => d.UMAP1);
     const y = parsed.map(d => d.UMAP2);
-    const z = parsed.map(d => {
-      const v1 = parseFloat(d["ブドウ糖"] || 0);
-      const v2 = parseFloat(d["果糖"] || 0);
-      return v1 + v2;
-    });
+    const z = parsed.map(d => d.z);
 
-    const gridSize = 100;
     const xMin = Math.min(...x), xMax = Math.max(...x);
     const yMin = Math.min(...y), yMax = Math.max(...y);
     setXRange([xMin, xMax]);
@@ -46,11 +99,11 @@ function MapPage() {
     const yStep = (yMax - yMin) / gridSize;
 
     const densityGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
-    parsed.forEach((row, i) => {
-      const xi = Math.floor((x[i] - xMin) / xStep);
-      const yi = Math.floor((y[i] - yMin) / yStep);
+    parsed.forEach((row) => {
+      const xi = Math.floor((row.UMAP1 - xMin) / xStep);
+      const yi = Math.floor((row.UMAP2 - yMin) / yStep);
       if (xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
-        densityGrid[yi][xi] += z[i];
+        densityGrid[yi][xi] += row.z;
       }
     });
 
@@ -62,16 +115,17 @@ function MapPage() {
       <h2>ワインマップ（UMAP + 甘味 等高線）</h2>
       <Plot
         data={[
-          // ✅ グレー打点（Type問わず）
-          {
-            x: data.map(d => d.UMAP1),
-            y: data.map(d => d.UMAP2),
-            mode: 'markers',
-            type: 'scatter',
-            name: 'All Wines',
-            marker: { color: 'gray', size: 7, opacity: 0.8 },
-          },
-          // ✅ 甘味等高線
+          ...Object.entries(typeColorMap).map(([type, color]) => {
+            const filtered = data.filter(d => d.Type === type);
+            return {
+              x: filtered.map(d => d.UMAP1),
+              y: filtered.map(d => d.UMAP2),
+              mode: 'markers',
+              type: 'scatter',
+              name: type,
+              marker: { color, size: 8, opacity: 0.8 },
+            };
+          }),
           {
             z: contourZ,
             type: 'contour',
