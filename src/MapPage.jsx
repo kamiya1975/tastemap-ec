@@ -53,7 +53,7 @@ function MapPage() {
   });
 
   return (
-    <div style={{ padding: '20px', width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
+    <div style={{ padding: '1rem', width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
       <h2 style={{ textAlign: 'center', fontSize: '22px' }}>ワインマップ（UMAP表示）</h2>
       <div style={{ width: '100%', height: '70vh' }}>
         <Plot
@@ -63,7 +63,7 @@ function MapPage() {
             text: grouped[type].map((d) => `${d.商品名}（${d.希望小売価格}円）`),
             mode: 'markers',
             type: 'scatter',
-            name: type,
+            name: type.toUpperCase(),
             marker: {
               size: 10,
               color: colorMap[type] || 'gray',
@@ -74,14 +74,20 @@ function MapPage() {
             autosize: true,
             margin: { t: 30, l: 30, r: 30, b: 30 },
             showlegend: true,
-            legend: { orientation: 'h' },
+            legend: {
+              orientation: 'h',
+              yanchor: 'bottom',
+              y: -0.3,
+              xanchor: 'center',
+              x: 0.5,
+            },
           }}
           style={{ width: '100%', height: '100%' }}
           useResizeHandler={true}
           config={{ responsive: true }}
         />
       </div>
-      <div style={{ textAlign: 'right', marginTop: '12px' }}>
+      <div style={{ textAlign: 'right', marginTop: '1rem' }}>
         <Link to="/" style={{ color: 'blue' }}>← トップへ戻る</Link>
       </div>
     </div>
