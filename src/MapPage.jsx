@@ -44,7 +44,7 @@ function MapPage() {
   return (
     <div style={{ padding: '1rem', width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
       <h2 style={{ textAlign: 'center' }}>ワインマップ（UMAP表示）</h2>
-      <div style={{ width: '100%', height: '600px' }}>
+      <div style={{ width: '100%', aspectRatio: '4 / 3' }}>
         <Plot
           data={Object.keys(grouped).map((type) => ({
             x: grouped[type].map((d) => d.UMAP1),
@@ -60,11 +60,14 @@ function MapPage() {
             },
           }))}
           layout={{
-            autosize: false,
-            width: undefined,
-            height: 600, // 👈 高さを固定
+            autosize: true,
             margin: { t: 30, l: 30, r: 30, b: 30 },
+            showlegend: true,
             legend: { orientation: 'h' },
+            yaxis: {
+              scaleanchor: 'x',
+              scaleratio: 0.75, // 4:3 の比率にする
+            },
           }}
           config={{ responsive: true }}
           style={{ width: '100%', height: '100%' }}
