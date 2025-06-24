@@ -1,3 +1,4 @@
+// src/MapPage.js
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import Papa from 'papaparse';
@@ -49,22 +50,22 @@ function MapPage() {
                 features.every(f => row[f] !== undefined && !isNaN(row[f]))
               );
 
-              // zスコアに必要な平均と標準偏差を計算
-              const zStats = {};
+              // min-max用スケールを計算
+              const minMaxStats = {};
               features.forEach(f => {
                 const vals = validData.map(d => parseFloat(d[f]));
-                const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-                const std = Math.sqrt(vals.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / vals.length);
-                zStats[f] = { mean, std };
+                const min = Math.min(...vals);
+                const max = Math.max(...vals);
+                minMaxStats[f] = { min, max };
               });
 
-              // zスコア合算でz値を求めて統合データ生成
               const combined = validData.map(row => {
                 const wine = wineMap[row.JAN];
                 const z = features.reduce((sum, f) => {
                   const value = parseFloat(row[f]);
-                  const { mean, std } = zStats[f];
-                  return sum + ((value - mean) / std);
+                  const { min, max } = minMaxStats[f];
+                  const norm = (value - min) / (max - min);
+                  return sum + norm;
                 }, 0);
                 return {
                   JAN: row.JAN,
@@ -88,7 +89,6 @@ function MapPage() {
     const gridSize = 100;
     const x = parsed.map(d => d.UMAP1);
     const y = parsed.map(d => d.UMAP2);
-    const z = parsed.map(d => d.z);
 
     const xMin = Math.min(...x), xMax = Math.max(...x);
     const yMin = Math.min(...y), yMax = Math.max(...y);
@@ -115,7 +115,6 @@ function MapPage() {
       <h2>ワインマップ（UMAP + 甘味 等高線）</h2>
       <Plot
         data={[
-          // 散布図（Type色分け）
           ...Object.entries(typeColorMap).map(([type, color]) => {
             const filtered = data.filter(d => d.Type === type);
             return {
@@ -127,7 +126,6 @@ function MapPage() {
               marker: { color, size: 8, opacity: 0.8 },
             };
           }),
-          // 等高線
           {
             z: contourZ,
             type: 'contour',
