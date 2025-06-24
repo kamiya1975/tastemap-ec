@@ -5,7 +5,12 @@ import Papa from 'papaparse';
 function useResizeObserver(ref, callback) {
   useEffect(() => {
     if (!ref.current) return;
-    const observer = new ResizeObserver(() => callback());
+
+    const handleResize = () => {
+      requestAnimationFrame(() => callback());
+    };
+
+    const observer = new ResizeObserver(handleResize);
     observer.observe(ref.current);
     return () => observer.disconnect();
   }, [ref, callback]);
@@ -16,15 +21,17 @@ function MapPage() {
   const plotWrapperRef = useRef(null);
   const [plotSize, setPlotSize] = useState({ width: 600, height: 600 });
 
-  useResizeObserver(plotWrapperRef, () => {
+  const updateSize = () => {
     if (plotWrapperRef.current) {
       const { width, height } = plotWrapperRef.current.getBoundingClientRect();
       setPlotSize({
-        width: width - 20,
-        height: Math.max(400, height - 20),
+        width: width > 0 ? width : 600,
+        height: height > 0 ? height : 500,
       });
     }
-  });
+  };
+
+  useResizeObserver(plotWrapperRef, updateSize);
 
   useEffect(() => {
     const loadData = async () => {
@@ -43,7 +50,11 @@ function MapPage() {
 
       setData(merged);
     };
+
     loadData();
+
+    // 初回のサイズ取得
+    setTimeout(updateSize, 100);
   }, []);
 
   const colorMap = {
