@@ -28,32 +28,37 @@ function MapPage() {
       });
   }, []);
 
-  // Typeごとにグループ化
+  // ✅ 色をTypeごとに明示的に割り当て
+  const colorMap = {
+    Spa: 'blue',
+    White: 'green',
+    Red: 'red',
+    Rose: 'deeppink', // 'rose' という色名はないため、代わりに 'deeppink' 使用
+    未分類: 'gray',
+  };
+
+  // ✅ Typeごとにグループ化
   const grouped = {};
   data.forEach(d => {
-    if (!grouped[d.Type]) {
-      grouped[d.Type] = [];
-    }
-    grouped[d.Type].push(d);
+    const type = d.Type || '未分類';
+    if (!grouped[type]) grouped[type] = [];
+    grouped[type].push(d);
   });
-
-  // 色の配列（Typeごとに使う）
-  const colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown', 'black'];
 
   return (
     <div style={{ padding: '30px', textAlign: 'center' }}>
       <h2 style={{ marginBottom: '30px' }}>ワインマップ（UMAP表示）</h2>
       <Plot
-        data={Object.keys(grouped).map((type, index) => ({
+        data={Object.keys(grouped).map(type => ({
           x: grouped[type].map(d => d.UMAP1),
           y: grouped[type].map(d => d.UMAP2),
           text: grouped[type].map(d => `${d.商品名}（${d.希望小売価格}円）`),
           mode: 'markers',
           type: 'scatter',
-          name: type || '未分類',
+          name: type,
           marker: {
             size: 10,
-            color: colors[index % colors.length],
+            color: colorMap[type] || 'gray',
             opacity: 0.7,
           },
         }))}
