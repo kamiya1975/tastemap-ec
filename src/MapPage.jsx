@@ -1,4 +1,3 @@
-// src/MapPage.js
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import Papa from 'papaparse';
@@ -50,6 +49,7 @@ function MapPage() {
                 features.every(f => row[f] !== undefined && !isNaN(row[f]))
               );
 
+              // zスコアに必要な平均と標準偏差を計算
               const zStats = {};
               features.forEach(f => {
                 const vals = validData.map(d => parseFloat(d[f]));
@@ -58,6 +58,7 @@ function MapPage() {
                 zStats[f] = { mean, std };
               });
 
+              // zスコア合算でz値を求めて統合データ生成
               const combined = validData.map(row => {
                 const wine = wineMap[row.JAN];
                 const z = features.reduce((sum, f) => {
@@ -65,7 +66,6 @@ function MapPage() {
                   const { mean, std } = zStats[f];
                   return sum + ((value - mean) / std);
                 }, 0);
-
                 return {
                   JAN: row.JAN,
                   UMAP1: wine.UMAP1,
@@ -115,6 +115,7 @@ function MapPage() {
       <h2>ワインマップ（UMAP + 甘味 等高線）</h2>
       <Plot
         data={[
+          // 散布図（Type色分け）
           ...Object.entries(typeColorMap).map(([type, color]) => {
             const filtered = data.filter(d => d.Type === type);
             return {
@@ -126,6 +127,7 @@ function MapPage() {
               marker: { color, size: 8, opacity: 0.8 },
             };
           }),
+          // 等高線
           {
             z: contourZ,
             type: 'contour',
