@@ -37,6 +37,14 @@ function MapPage() {
     loadCSV();
   }, []);
 
+  // ✅ 初回ロード後に Plotly を強制リサイズ
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
+
   const colorMap = {
     red: 'red',
     white: 'green',
@@ -55,7 +63,7 @@ function MapPage() {
   return (
     <div style={{ padding: '1rem', width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
       <h2 style={{ textAlign: 'center', fontSize: '22px' }}>ワインマップ（UMAP表示）</h2>
-      <div style={{ width: '100%', height: '70vh' }}>
+      <div style={{ width: '100%', height: '70vh', position: 'relative' }}>
         <Plot
           data={Object.keys(grouped).map((type) => ({
             x: grouped[type].map((d) => d.UMAP1),
