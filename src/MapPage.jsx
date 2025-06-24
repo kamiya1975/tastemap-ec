@@ -1,3 +1,4 @@
+// src/MapPage.js
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import Papa from 'papaparse';
@@ -5,122 +6,103 @@ import Papa from 'papaparse';
 function MapPage() {
   const [data, setData] = useState([]);
   const [contourZ, setContourZ] = useState([]);
+  const [xRange, setXRange] = useState([0, 10]);
+  const [yRange, setYRange] = useState([0, 10]);
 
-  const selectedVariables = ['ブドウ糖', '果糖'];
-
-  useEffect(() => {
-    const loadData = async () => {
-      const [wineRes, tasteRes] = await Promise.all([
-        fetch('/wine_data.csv'),
-        fetch('/Merged_TasteDataDB15.csv'),
-      ]);
-
-      const [wineText, tasteText] = await Promise.all([
-        wineRes.text(),
-        tasteRes.text(),
-      ]);
-
-      const wineParsed = Papa.parse(wineText, { header: true }).data;
-      const tasteParsed = Papa.parse(tasteText, { header: true }).data;
-
-      const tasteMap = {};
-      tasteParsed.forEach((row) => {
-        if (row.JAN) tasteMap[row.JAN.trim()] = row;
-      });
-
-      const merged = wineParsed
-        .filter((d) => d.UMAP1 && d.UMAP2 && d.JAN)
-        .map((d) => {
-          const jan = d.JAN.trim();
-          const taste = tasteMap[jan] || {};
-          const stdSum = selectedVariables.reduce((sum, v) => {
-            const val = parseFloat(taste[v]);
-            return sum + (isNaN(val) ? 0 : val);
-          }, 0);
-
-          return {
-            ...d,
-            UMAP1: parseFloat(d.UMAP1),
-            UMAP2: parseFloat(d.UMAP2),
-            price: parseInt(d['希望小売価格'], 10),
-            type: d.Type?.trim().toLowerCase() || 'unknown',
-            stdSum,
-          };
-        });
-
-      setData(merged);
-      setContourZ(merged.map((d) => d.stdSum));
-    };
-
-    loadData();
-  }, []);
-
-  const colorMap = {
-    red: 'red',
-    white: 'green',
-    rose: 'deeppink',
-    spa: 'blue',
+  // Typeごとの色
+  const typeColorMap = {
+    Red: 'red',
+    White: 'green',
+    Spa: 'blue',
+    Rose: 'pink',
     unknown: 'gray',
   };
 
-  const grouped = {};
-  data.forEach((d) => {
-    const t = d.type;
-    if (!grouped[t]) grouped[t] = [];
-    grouped[t].push(d);
-  });
+  useEffect(() => {
+    fetch("/Merged_TasteDataDB15.csv")
+      .then((response) => response.text())
+      .then((csvText) => {
+        Papa.parse(csvText, {
+          header: true,
+          dynamicTyping: true,
+          complete: (results) => {
+            const parsed = results.data.filter(row => row.UMAP1 !== undefined && row.UMAP2 !== undefined);
+            setData(parsed);
+            computeContour(parsed);
+          },
+        });
+      });
+  }, []);
 
-  const contourTrace = {
-    x: data.map((d) => d.UMAP1),
-    y: data.map((d) => d.UMAP2),
-    z: contourZ,
-    type: 'contour',
-    colorscale: 'YlGnBu',
-    contours: {
-      coloring: 'heatmap',
-      showlabels: true,
-      labelfont: { size: 10, color: 'black' },
-    },
-    name: '等高線（標準偏差）',
-    opacity: 0.4,
-    showscale: true,
+  const computeContour = (parsed) => {
+    const x = parsed.map(d => d.UMAP1);
+    const y = parsed.map(d => d.UMAP2);
+    const z = parsed.map(d => {
+      const v1 = parseFloat(d["ブドウ糖"] || 0);
+      const v2 = parseFloat(d["果糖"] || 0);
+      return v1 + v2;
+    });
+
+    const gridSize = 100;
+    const xMin = Math.min(...x), xMax = Math.max(...x);
+    const yMin = Math.min(...y), yMax = Math.max(...y);
+    setXRange([xMin, xMax]);
+    setYRange([yMin, yMax]);
+
+    const xStep = (xMax - xMin) / gridSize;
+    const yStep = (yMax - yMin) / gridSize;
+
+    const densityGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
+    parsed.forEach((row, i) => {
+      const xi = Math.floor((x[i] - xMin) / xStep);
+      const yi = Math.floor((y[i] - yMin) / yStep);
+      if (xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
+        densityGrid[yi][xi] += z[i];
+      }
+    });
+
+    setContourZ(densityGrid);
   };
 
   return (
-    <div style={{ padding: '1rem', width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
-      <h2 style={{ textAlign: 'center' }}>ワインマップ（UMAP表示 + 等高線）</h2>
-      <div style={{ width: '100%', aspectRatio: '4 / 3' }}>
-        <Plot
-          data={[
-            contourTrace,
-            ...Object.keys(grouped).map((type) => ({
-              x: grouped[type].map((d) => d.UMAP1),
-              y: grouped[type].map((d) => d.UMAP2),
-              text: grouped[type].map((d) => `${d.商品名}（${d.希望小売価格}円）`),
+    <div style={{ padding: '20px' }}>
+      <h2>ワインマップ（UMAP + 甘味 等高線）</h2>
+      <Plot
+        data={[
+          // Type別バブル
+          ...Object.entries(typeColorMap).map(([type, color]) => {
+            const filtered = data.filter(d => (d.Type || 'unknown') === type);
+            return {
+              x: filtered.map(d => d.UMAP1),
+              y: filtered.map(d => d.UMAP2),
               mode: 'markers',
               type: 'scatter',
               name: type,
-              marker: {
-                size: 10,
-                color: colorMap[type] || 'gray',
-                opacity: 0.75,
-              },
-            })),
-          ]}
-          layout={{
-            autosize: true,
-            margin: { t: 30, l: 30, r: 30, b: 30 },
-            showlegend: true,
-            legend: { orientation: 'h' },
-            yaxis: {
-              scaleanchor: 'x',
-              scaleratio: 0.75, // 4:3 比率
-            },
-          }}
-          config={{ responsive: true }}
-          style={{ width: '100%', height: '100%' }}
-        />
-      </div>
+              marker: { color, size: 8, opacity: 0.8 },
+            };
+          }),
+          // 等高線
+          {
+            z: contourZ,
+            type: 'contour',
+            colorscale: 'YlOrRd',
+            contours: { coloring: 'heatmap' },
+            x: Array.from({ length: contourZ[0]?.length || 0 }, (_, i) => xRange[0] + i * (xRange[1] - xRange[0]) / (contourZ[0].length)),
+            y: Array.from({ length: contourZ.length }, (_, j) => yRange[0] + j * (yRange[1] - yRange[0]) / (contourZ.length)),
+            showscale: false,
+            opacity: 0.5,
+          },
+        ]}
+        layout={{
+          width: 800,
+          height: 600,
+          autosize: false,
+          xaxis: { title: 'UMAP1', range: xRange },
+          yaxis: { title: 'UMAP2', range: yRange },
+          legend: { orientation: "h" },
+          margin: { t: 30 },
+        }}
+      />
     </div>
   );
 }
