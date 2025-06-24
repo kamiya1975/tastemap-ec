@@ -1,4 +1,3 @@
-// src/MapPage.js
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import Papa from 'papaparse';
@@ -50,7 +49,6 @@ function MapPage() {
                 features.every(f => row[f] !== undefined && !isNaN(row[f]))
               );
 
-              // min-max用スケールを計算
               const minMaxStats = {};
               features.forEach(f => {
                 const vals = validData.map(d => parseFloat(d[f]));
@@ -86,10 +84,9 @@ function MapPage() {
   }, []);
 
   const computeContour = (parsed) => {
-    const gridSize = 100;
+    const gridSize = 50;
     const x = parsed.map(d => d.UMAP1);
     const y = parsed.map(d => d.UMAP2);
-
     const xMin = Math.min(...x), xMax = Math.max(...x);
     const yMin = Math.min(...y), yMax = Math.max(...y);
     setXRange([xMin, xMax]);
@@ -99,13 +96,24 @@ function MapPage() {
     const yStep = (yMax - yMin) / gridSize;
 
     const densityGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
+    const countGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
+
     parsed.forEach((row) => {
       const xi = Math.floor((row.UMAP1 - xMin) / xStep);
       const yi = Math.floor((row.UMAP2 - yMin) / yStep);
       if (xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
         densityGrid[yi][xi] += row.z;
+        countGrid[yi][xi] += 1;
       }
     });
+
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        if (countGrid[i][j] > 0) {
+          densityGrid[i][j] /= countGrid[i][j]; // 平均化
+        }
+      }
+    }
 
     setContourZ(densityGrid);
   };
@@ -130,7 +138,13 @@ function MapPage() {
             z: contourZ,
             type: 'contour',
             colorscale: 'YlOrRd',
-            contours: { coloring: 'heatmap' },
+            contours: {
+              coloring: 'heatmap',
+              showlines: true,
+              start: 0,
+              end: 3,
+              size: 0.3,
+            },
             x: Array.from({ length: contourZ[0]?.length || 0 }, (_, i) =>
               xRange[0] + i * (xRange[1] - xRange[0]) / (contourZ[0].length)
             ),
@@ -156,4 +170,3 @@ function MapPage() {
 }
 
 export default MapPage;
-
