@@ -1,9 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import Papa from 'papaparse';
 
+function useResizeObserver(ref, callback) {
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new ResizeObserver(() => callback());
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [ref, callback]);
+}
+
 function MapPage() {
   const [data, setData] = useState([]);
+  const plotWrapperRef = useRef(null);
+  const [plotSize, setPlotSize] = useState({ width: 600, height: 600 });
+
+  useResizeObserver(plotWrapperRef, () => {
+    if (plotWrapperRef.current) {
+      const { width, height } = plotWrapperRef.current.getBoundingClientRect();
+      setPlotSize({
+        width: width - 20,
+        height: Math.max(400, height - 20),
+      });
+    }
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -21,13 +42,7 @@ function MapPage() {
         }));
 
       setData(merged);
-
-      // ⭐️ 初回レンダリングで強制 resize を発火
-      setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 300);
     };
-
     loadData();
   }, []);
 
@@ -47,9 +62,9 @@ function MapPage() {
   });
 
   return (
-    <div style={{ padding: '1rem', width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
+    <div style={{ padding: '1rem' }}>
       <h2 style={{ textAlign: 'center' }}>ワインマップ（UMAP表示）</h2>
-      <div style={{ width: '100%', height: '70vh' }}>
+      <div ref={plotWrapperRef} style={{ width: '100%', minHeight: '70vh' }}>
         <Plot
           data={Object.keys(grouped).map((type) => ({
             x: grouped[type].map((d) => d.UMAP1),
@@ -65,12 +80,12 @@ function MapPage() {
             },
           }))}
           layout={{
-            autosize: true,
+            autosize: false,
+            width: plotSize.width,
+            height: plotSize.height,
             margin: { t: 30, l: 30, r: 30, b: 30 },
             legend: { orientation: 'h' },
           }}
-          style={{ width: '100%', height: '100%' }}
-          useResizeHandler={true}
           config={{ responsive: true }}
         />
       </div>
