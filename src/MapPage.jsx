@@ -1,77 +1,89 @@
-import React, { useEffect, useState } from 'react';
+// src/MapPage.jsx
+import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import Papa from 'papaparse';
 import { Link } from 'react-router-dom';
+import Papa from 'papaparse';
 
 function MapPage() {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    fetch('/wine_data.csv')
-      .then(response => response.text())
-      .then(csvText => {
-        Papa.parse(csvText, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            const parsed = results.data.map(d => ({
-              商品名: d["商品名"],
-              JAN: d["JAN"],
-              Type: d["Type"],
-              UMAP1: parseFloat(d["UMAP1"]),
-              UMAP2: parseFloat(d["UMAP2"]),
-              希望小売価格: parseFloat(d["希望小売価格"]),
-            }));
-            setData(parsed);
-          }
-        });
+    const loadCSV = async () => {
+      const wineDataResp = await fetch('/wine_data.csv');
+      const wineDataText = await wineDataResp.text();
+      const parsedWine = Papa.parse(wineDataText, { header: true }).data;
+
+      const typeDataResp = await fetch('/Merged_TasteDataDB15.csv');
+      const typeDataText = await typeDataResp.text();
+      const parsedType = Papa.parse(typeDataText, { header: true }).data;
+
+      // JANでType情報を結合
+      const typeMap = {};
+      parsedType.forEach((d) => {
+        if (d.JAN) typeMap[d.JAN.trim()] = d.Type?.trim().toLowerCase() || 'unknown';
       });
+
+      const merged = parsedWine
+        .filter((d) => d.UMAP1 && d.UMAP2 && d.JAN)
+        .map((d) => ({
+          ...d,
+          UMAP1: parseFloat(d.UMAP1),
+          UMAP2: parseFloat(d.UMAP2),
+          price: parseInt(d['希望小売価格'], 10),
+          type: typeMap[d.JAN.trim()] || 'unknown',
+        }));
+
+      setData(merged);
+    };
+
+    loadCSV();
   }, []);
 
-  // ✅ 色をTypeごとに明示的に割り当て
   const colorMap = {
-    Spa: 'blue',
-    White: 'green',
-    Red: 'red',
-    Rose: 'deeppink', // 'rose' という色名はないため、代わりに 'deeppink' 使用
-    未分類: 'gray',
+    spa: 'blue',
+    white: 'green',
+    red: 'red',
+    rose: 'deeppink',
+    unknown: 'gray',
   };
 
-  // ✅ Typeごとにグループ化
   const grouped = {};
-  data.forEach(d => {
-    const type = d.Type || '未分類';
-    if (!grouped[type]) grouped[type] = [];
-    grouped[type].push(d);
+  data.forEach((d) => {
+    const t = d.type || 'unknown';
+    if (!grouped[t]) grouped[t] = [];
+    grouped[t].push(d);
   });
 
   return (
-    <div style={{ padding: '30px', textAlign: 'center' }}>
-      <h2 style={{ marginBottom: '30px' }}>ワインマップ（UMAP表示）</h2>
+    <div style={{ padding: '20px' }}>
+      <h2 style={{ textAlign: 'center', fontSize: '24px' }}>ワインマップ（UMAP表示）</h2>
       <Plot
-        data={Object.keys(grouped).map(type => ({
-          x: grouped[type].map(d => d.UMAP1),
-          y: grouped[type].map(d => d.UMAP2),
-          text: grouped[type].map(d => `${d.商品名}（${d.希望小売価格}円）`),
+        data={Object.keys(grouped).map((type) => ({
+          x: grouped[type].map((d) => d.UMAP1),
+          y: grouped[type].map((d) => d.UMAP2),
+          text: grouped[type].map((d) => `${d.商品名}（${d.希望小売価格}円）`),
           mode: 'markers',
           type: 'scatter',
           name: type,
           marker: {
             size: 10,
             color: colorMap[type] || 'gray',
-            opacity: 0.7,
+            opacity: 0.75,
           },
         }))}
         layout={{
-          width: 700,
-          height: 600,
-          margin: { l: 40, r: 40, b: 40, t: 40 },
-          xaxis: { title: 'UMAP1' },
-          yaxis: { title: 'UMAP2' },
+          autosize: true,
+          margin: { t: 40, l: 40, r: 40, b: 40 },
+          showlegend: true,
           legend: { orientation: 'h' },
         }}
+        style={{ width: '100%', height: '80vh' }}
+        useResizeHandler={true}
+        config={{ responsive: true }}
       />
-      <Link to="/" style={{ marginTop: '20px', display: 'inline-block', color: '#6666ff' }}>← トップへ戻る</Link>
+      <div style={{ textAlign: 'right', marginTop: '10px' }}>
+        <Link to="/" style={{ color: 'blue' }}>← トップへ戻る</Link>
+      </div>
     </div>
   );
 }
