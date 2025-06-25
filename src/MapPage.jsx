@@ -1,3 +1,8 @@
+// ✅ 改善点：
+// - 1ファイル読み込み（wine_data_with_z-2.csv）
+// - Z項目をプルダウンで選択可能
+// - Type色分け、UMAP軸表示、等高線に選択Z値を使用
+
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import Papa from 'papaparse';
@@ -7,6 +12,7 @@ function MapPage() {
   const [contourZ, setContourZ] = useState([]);
   const [xRange, setXRange] = useState([0, 10]);
   const [yRange, setYRange] = useState([0, 10]);
+  const [selectedZ, setSelectedZ] = useState("Z_甘味");
 
   const typeColorMap = {
     Red: 'red',
@@ -26,64 +32,32 @@ function MapPage() {
   };
 
   useEffect(() => {
-    Promise.all([
-      fetch("/wine_data.csv").then(res => res.text()),
-      fetch("/Merged_TasteDataDB15.csv").then(res => res.text())
-    ]).then(([wineText, mergedText]) => {
-      Papa.parse(wineText, {
-        header: true,
-        dynamicTyping: true,
-        complete: (wineResult) => {
-          Papa.parse(mergedText, {
-            header: true,
-            dynamicTyping: true,
-            complete: (mergedResult) => {
-              const wineMap = {};
-              wineResult.data.forEach(row => {
-                wineMap[row.JAN] = row;
-              });
-
-              const features = ["ブドウ糖", "果糖", "グリセリン"];
-              const validData = mergedResult.data.filter(row =>
-                row.JAN in wineMap &&
-                features.every(f => row[f] !== undefined && !isNaN(row[f]))
-              );
-
-              const minMaxStats = {};
-              features.forEach(f => {
-                const vals = validData.map(d => parseFloat(d[f]));
-                const min = Math.min(...vals);
-                const max = Math.max(...vals);
-                minMaxStats[f] = { min, max };
-              });
-
-              const combined = validData.map(row => {
-                const wine = wineMap[row.JAN];
-                const z = features.reduce((sum, f) => {
-                  const value = parseFloat(row[f]);
-                  const { min, max } = minMaxStats[f];
-                  const norm = (value - min) / (max - min);
-                  return sum + norm;
-                }, 0);
-                return {
-                  JAN: row.JAN,
-                  UMAP1: wine.UMAP1,
-                  UMAP2: wine.UMAP2,
-                  Type: normalizeType(row.Type),
-                  z,
-                };
-              });
-
-              setData(combined);
-              computeContour(combined);
-            }
-          });
-        }
+    fetch("/wine_data_with_z-2.csv")
+      .then(res => res.text())
+      .then(csvText => {
+        Papa.parse(csvText, {
+          header: true,
+          dynamicTyping: true,
+          complete: (result) => {
+            const rows = result.data.filter(d => d.UMAP1 && d.UMAP2);
+            const normalized = rows.map(row => ({
+              ...row,
+              Type: normalizeType(row.Type),
+            }));
+            setData(normalized);
+            computeContour(normalized, selectedZ);
+          }
+        });
       });
-    });
   }, []);
 
-  const computeContour = (parsed) => {
+  useEffect(() => {
+    if (data.length > 0) {
+      computeContour(data, selectedZ);
+    }
+  }, [selectedZ]);
+
+  const computeContour = (parsed, zField) => {
     const gridSize = 50;
     const x = parsed.map(d => d.UMAP1);
     const y = parsed.map(d => d.UMAP2);
@@ -101,8 +75,9 @@ function MapPage() {
     parsed.forEach((row) => {
       const xi = Math.floor((row.UMAP1 - xMin) / xStep);
       const yi = Math.floor((row.UMAP2 - yMin) / yStep);
-      if (xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
-        densityGrid[yi][xi] += row.z;
+      const value = parseFloat(row[zField]);
+      if (!isNaN(value) && xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
+        densityGrid[yi][xi] += value;
         countGrid[yi][xi] += 1;
       }
     });
@@ -110,7 +85,7 @@ function MapPage() {
     for (let i = 0; i < gridSize; i++) {
       for (let j = 0; j < gridSize; j++) {
         if (countGrid[i][j] > 0) {
-          densityGrid[i][j] /= countGrid[i][j]; // 平均化
+          densityGrid[i][j] /= countGrid[i][j];
         }
       }
     }
@@ -120,7 +95,15 @@ function MapPage() {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2>ワインマップ（UMAP + 甘味 等高線）</h2>
+      <h2>ワインマップ（UMAP + {selectedZ} 等高線）</h2>
+      <div style={{ marginBottom: '10px' }}>
+        <label>等高線項目を選択: </label>
+        <select value={selectedZ} onChange={e => setSelectedZ(e.target.value)}>
+          <option value="Z_甘味">甘味</option>
+          <option value="Z_渋味">渋味</option>
+          <option value="Z_酸味">酸味</option>
+        </select>
+      </div>
       <Plot
         data={[
           ...Object.entries(typeColorMap).map(([type, color]) => {
@@ -131,7 +114,7 @@ function MapPage() {
               mode: 'markers',
               type: 'scatter',
               name: type,
-              marker: { color, size: 8, opacity: 0.8 },
+              marker: { color, size: 8, opacity: 0.7 },
             };
           }),
           {
@@ -140,10 +123,7 @@ function MapPage() {
             colorscale: 'YlOrRd',
             contours: {
               coloring: 'heatmap',
-              showlines: true,
-              start: 0,
-              end: 3,
-              size: 0.3,
+              showlines: true
             },
             x: Array.from({ length: contourZ[0]?.length || 0 }, (_, i) =>
               xRange[0] + i * (xRange[1] - xRange[0]) / (contourZ[0].length)
@@ -153,12 +133,11 @@ function MapPage() {
             ),
             showscale: false,
             opacity: 0.5,
-          },
+          }
         ]}
         layout={{
           width: 800,
           height: 600,
-          autosize: false,
           xaxis: { title: 'UMAP1', range: xRange },
           yaxis: { title: 'UMAP2', range: yRange },
           legend: { orientation: "h" },
