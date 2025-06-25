@@ -1,8 +1,3 @@
-// ✅ 改善点：
-// - 1ファイル読み込み（wine_data_with_z-2.csv）
-// - Z項目をプルダウンで選択可能
-// - Type色分け、UMAP軸表示、等高線に選択Z値を使用
-
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import Papa from 'papaparse';
@@ -12,7 +7,7 @@ function MapPage() {
   const [contourZ, setContourZ] = useState([]);
   const [xRange, setXRange] = useState([0, 10]);
   const [yRange, setYRange] = useState([0, 10]);
-  const [selectedZ, setSelectedZ] = useState("Z_甘味");
+  const [selectedZKey, setSelectedZKey] = useState("Z_甘味");
 
   const typeColorMap = {
     Red: 'red',
@@ -32,35 +27,38 @@ function MapPage() {
   };
 
   useEffect(() => {
-    fetch("/wine_data_with_z-2.csv")
+    fetch("/wine_data.csv")
       .then(res => res.text())
-      .then(csvText => {
-        Papa.parse(csvText, {
+      .then(text => {
+        Papa.parse(text, {
           header: true,
           dynamicTyping: true,
           complete: (result) => {
-            const rows = result.data.filter(d => d.UMAP1 && d.UMAP2);
-            const normalized = rows.map(row => ({
-              ...row,
-              Type: normalizeType(row.Type),
-            }));
-            setData(normalized);
-            computeContour(normalized, selectedZ);
-          }
+            const parsed = result.data
+              .filter(d => d.UMAP1 !== undefined && d.UMAP2 !== undefined)
+              .map(d => ({
+                ...d,
+                Type: normalizeType(d.Type),
+              }));
+            setData(parsed);
+            computeContour(parsed, selectedZKey);
+          },
         });
       });
   }, []);
 
   useEffect(() => {
     if (data.length > 0) {
-      computeContour(data, selectedZ);
+      computeContour(data, selectedZKey);
     }
-  }, [selectedZ]);
+  }, [selectedZKey]);
 
-  const computeContour = (parsed, zField) => {
-    const gridSize = 50;
+  const computeContour = (parsed, key) => {
+    const gridSize = 100;
     const x = parsed.map(d => d.UMAP1);
     const y = parsed.map(d => d.UMAP2);
+    const z = parsed.map(d => parseFloat(d[key]));
+
     const xMin = Math.min(...x), xMax = Math.max(...x);
     const yMin = Math.min(...y), yMax = Math.max(...y);
     setXRange([xMin, xMax]);
@@ -72,12 +70,11 @@ function MapPage() {
     const densityGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
     const countGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
 
-    parsed.forEach((row) => {
+    parsed.forEach((row, i) => {
       const xi = Math.floor((row.UMAP1 - xMin) / xStep);
       const yi = Math.floor((row.UMAP2 - yMin) / yStep);
-      const value = parseFloat(row[zField]);
-      if (!isNaN(value) && xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
-        densityGrid[yi][xi] += value;
+      if (xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
+        densityGrid[yi][xi] += parseFloat(row[key]);
         countGrid[yi][xi] += 1;
       }
     });
@@ -93,17 +90,18 @@ function MapPage() {
     setContourZ(densityGrid);
   };
 
+  const zKeys = ["Z_甘味", "Z_渋味", "Z_酸味"];
+
   return (
     <div style={{ padding: '20px' }}>
-      <h2>ワインマップ（UMAP + {selectedZ} 等高線）</h2>
-      <div style={{ marginBottom: '10px' }}>
-        <label>等高線項目を選択: </label>
-        <select value={selectedZ} onChange={e => setSelectedZ(e.target.value)}>
-          <option value="Z_甘味">甘味</option>
-          <option value="Z_渋味">渋味</option>
-          <option value="Z_酸味">酸味</option>
-        </select>
-      </div>
+      <h2>ワインマップ（UMAP + {selectedZKey} 等高線）</h2>
+      <label>等高線項目を選択: </label>
+      <select value={selectedZKey} onChange={(e) => setSelectedZKey(e.target.value)}>
+        {zKeys.map(k => (
+          <option key={k} value={k}>{k.replace("Z_", "")}</option>
+        ))}
+      </select>
+
       <Plot
         data={[
           ...Object.entries(typeColorMap).map(([type, color]) => {
@@ -114,16 +112,26 @@ function MapPage() {
               mode: 'markers',
               type: 'scatter',
               name: type,
-              marker: { color, size: 8, opacity: 0.7 },
+              marker: { color, size: 7, opacity: 0.6 },
             };
           }),
           {
             z: contourZ,
             type: 'contour',
-            colorscale: 'YlOrRd',
+            colorscale: [
+              [0.0, 'rgba(255,255,255,0)'],
+              [0.2, 'rgba(255,237,160,0.3)'],
+              [0.4, 'rgba(254,217,118,0.4)'],
+              [0.6, 'rgba(254,178,76,0.5)'],
+              [0.8, 'rgba(253,141,60,0.6)'],
+              [1.0, 'rgba(240,59,32,0.8)']
+            ],
             contours: {
               coloring: 'heatmap',
-              showlines: true
+              showlines: true,
+              start: 0,
+              end: 3,
+              size: 0.05,
             },
             x: Array.from({ length: contourZ[0]?.length || 0 }, (_, i) =>
               xRange[0] + i * (xRange[1] - xRange[0]) / (contourZ[0].length)
@@ -132,12 +140,13 @@ function MapPage() {
               yRange[0] + j * (yRange[1] - yRange[0]) / (contourZ.length)
             ),
             showscale: false,
-            opacity: 0.5,
-          }
+            opacity: 1.0,
+          },
         ]}
         layout={{
-          width: 800,
-          height: 600,
+          width: 900,
+          height: 700,
+          autosize: false,
           xaxis: { title: 'UMAP1', range: xRange },
           yaxis: { title: 'UMAP2', range: yRange },
           legend: { orientation: "h" },
