@@ -9,7 +9,6 @@ function MapPage() {
   const [yArr, setYArr] = useState([]);
   const [xRange, setXRange] = useState([0, 10]);
   const [yRange, setYRange] = useState([0, 10]);
-  const [zRange, setZRange] = useState([0, 1]);
   const [selectedZKey, setSelectedZKey] = useState("Z_甘味");
 
   const typeColorMap = {
@@ -63,12 +62,6 @@ function MapPage() {
     const rawZ = parsed.map(d => parseFloat(d[key]));
     const validZ = rawZ.filter(v => !isNaN(v) && isFinite(v));
 
-    const zMinRaw = Math.min(...validZ);
-    const zMaxRaw = Math.max(...validZ);
-    const safeZMin = isFinite(zMinRaw) ? zMinRaw : 0;
-    const safeZMax = isFinite(zMaxRaw) && zMaxRaw > safeZMin ? zMaxRaw : safeZMin + 0.1;
-    setZRange([safeZMin, safeZMax]);
-
     const xMin = Math.min(...x), xMax = Math.max(...x);
     const yMin = Math.min(...y), yMax = Math.max(...y);
     setXRange([xMin, xMax]);
@@ -112,7 +105,7 @@ function MapPage() {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2>ワインマップ（UMAP + {selectedZKey} 等高線）</h2>
+      <h2>ワインマップ（UMAP + {selectedZKey} 等高線：線だけ表示）</h2>
       <label>等高線項目を選択: </label>
       <select value={selectedZKey} onChange={(e) => setSelectedZKey(e.target.value)}>
         {zKeys.map(k => (
@@ -122,7 +115,7 @@ function MapPage() {
 
       <Plot
         data={[
-          // マーカー群（Type別）
+          // マーカー群
           ...Object.entries(typeColorMap).map(([type, color]) => {
             const filtered = data.filter(d => d.Type === type);
             return {
@@ -134,21 +127,7 @@ function MapPage() {
               marker: { color, size: 7, opacity: 0.6 },
             };
           }),
-          // ヒートマップ（背景色）
-          {
-            z: contourZ,
-            x: xArr,
-            y: yArr,
-            type: 'contour',
-            colorscale: 'YlOrRd',
-            contours: {
-              coloring: 'heatmap',
-              showlines: false,
-            },
-            showscale: true,
-            opacity: 0.7,
-          },
-          // 等高線（線だけ）
+          // 等高線レイヤー（線のみ）
           {
             z: contourZ,
             x: xArr,
@@ -158,12 +137,12 @@ function MapPage() {
             contours: {
               coloring: 'lines',
               showlines: true,
-              start: zRange[0],
-              end: zRange[1],
-              size: Math.max((zRange[1] - zRange[0]) / 10, 0.005),
+              start: 0.02,
+              end: 0.09,
+              size: 0.015,
             },
             line: {
-              width: 2,
+              width: 3,
               color: 'black',
             },
             showscale: false,
