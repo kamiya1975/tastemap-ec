@@ -122,6 +122,7 @@ function MapPage() {
 
       <Plot
         data={[
+          // マーカー群（Type別）
           ...Object.entries(typeColorMap).map(([type, color]) => {
             const filtered = data.filter(d => d.Type === type);
             return {
@@ -133,6 +134,7 @@ function MapPage() {
               marker: { color, size: 7, opacity: 0.6 },
             };
           }),
+          // ヒートマップ（背景色）
           {
             z: contourZ,
             x: xArr,
@@ -140,18 +142,32 @@ function MapPage() {
             type: 'contour',
             colorscale: 'YlOrRd',
             contours: {
-              coloring: 'lines', // 塗り + 輪郭線
-              showlines: true,
-              start: zRange[0],
-              end: zRange[1],
-              size: 0.02,
-            },
-            line: {
-              width: 2.5,
-              color: 'black',
+              coloring: 'heatmap',
+              showlines: false,
             },
             showscale: true,
             opacity: 0.7,
+          },
+          // 等高線（線だけ）
+          {
+            z: contourZ,
+            x: xArr,
+            y: yArr,
+            type: 'contour',
+            colorscale: 'Greys',
+            contours: {
+              coloring: 'lines',
+              showlines: true,
+              start: zRange[0],
+              end: zRange[1],
+              size: Math.max((zRange[1] - zRange[0]) / 10, 0.005),
+            },
+            line: {
+              width: 2,
+              color: 'black',
+            },
+            showscale: false,
+            opacity: 1.0,
           },
         ]}
         layout={{
