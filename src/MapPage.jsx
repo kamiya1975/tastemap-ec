@@ -61,10 +61,13 @@ function MapPage() {
     const x = parsed.map(d => d.UMAP1);
     const y = parsed.map(d => d.UMAP2);
     const rawZ = parsed.map(d => parseFloat(d[key]));
-    const validZ = rawZ.filter(v => !isNaN(v));
-    const zMin = Math.min(...validZ);
-    const zMax = Math.max(...validZ);
-    setZRange([zMin, zMax]);
+    const validZ = rawZ.filter(v => !isNaN(v) && isFinite(v));
+
+    const zMinRaw = Math.min(...validZ);
+    const zMaxRaw = Math.max(...validZ);
+    const safeZMin = isFinite(zMinRaw) ? zMinRaw : 0;
+    const safeZMax = isFinite(zMaxRaw) && zMaxRaw > safeZMin ? zMaxRaw : safeZMin + 0.1;
+    setZRange([safeZMin, safeZMax]);
 
     const xMin = Math.min(...x), xMax = Math.max(...x);
     const yMin = Math.min(...y), yMax = Math.max(...y);
@@ -79,7 +82,7 @@ function MapPage() {
 
     parsed.forEach((row) => {
       const value = parseFloat(row[key]);
-      if (isNaN(value)) return;
+      if (isNaN(value) || !isFinite(value)) return;
       const xi = Math.floor((row.UMAP1 - xMin) / xStep);
       const yi = Math.floor((row.UMAP2 - yMin) / yStep);
       if (xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
@@ -93,7 +96,7 @@ function MapPage() {
         if (countGrid[i][j] > 0) {
           densityGrid[i][j] /= countGrid[i][j];
         } else {
-          densityGrid[i][j] = 0;
+          densityGrid[i][j] = 0; // NaNは完全排除
         }
       }
     }
@@ -141,7 +144,7 @@ function MapPage() {
               showlines: true,
               start: zRange[0],
               end: zRange[1],
-              size: (zRange[1] - zRange[0]) / 15,
+              size: Math.max((zRange[1] - zRange[0]) / 15, 0.01),
             },
             showscale: true,
             opacity: 0.5,
