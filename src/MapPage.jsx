@@ -5,6 +5,8 @@ import Papa from 'papaparse';
 function MapPage() {
   const [data, setData] = useState([]);
   const [contourZ, setContourZ] = useState([]);
+  const [xArr, setXArr] = useState([]);
+  const [yArr, setYArr] = useState([]);
   const [xRange, setXRange] = useState([0, 10]);
   const [yRange, setYRange] = useState([0, 10]);
   const [selectedZKey, setSelectedZKey] = useState("Z_甘味");
@@ -64,16 +66,17 @@ function MapPage() {
     setXRange([xMin, xMax]);
     setYRange([yMin, yMax]);
 
-    const xStep = (xMax - xMin) / gridSize;
-    const yStep = (yMax - yMin) / gridSize;
+    const xStep = (xMax - xMin) / (gridSize - 1);
+    const yStep = (yMax - yMin) / (gridSize - 1);
 
-    const densityGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
+    const densityGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
     const countGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
 
-    parsed.forEach((row, i) => {
+    parsed.forEach((row) => {
       const xi = Math.floor((row.UMAP1 - xMin) / xStep);
       const yi = Math.floor((row.UMAP2 - yMin) / yStep);
       if (xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
+        if (densityGrid[yi][xi] === null) densityGrid[yi][xi] = 0;
         densityGrid[yi][xi] += parseFloat(row[key]);
         countGrid[yi][xi] += 1;
       }
@@ -83,11 +86,18 @@ function MapPage() {
       for (let j = 0; j < gridSize; j++) {
         if (countGrid[i][j] > 0) {
           densityGrid[i][j] /= countGrid[i][j];
+        } else {
+          densityGrid[i][j] = null; // もしくは 0 でもOK
         }
       }
     }
 
+    const xArr = Array.from({ length: gridSize }, (_, i) => xMin + i * xStep);
+    const yArr = Array.from({ length: gridSize }, (_, j) => yMin + j * yStep);
+
     setContourZ(densityGrid);
+    setXArr(xArr);
+    setYArr(yArr);
   };
 
   const zKeys = ["Z_甘味", "Z_渋味", "Z_酸味"];
@@ -117,30 +127,19 @@ function MapPage() {
           }),
           {
             z: contourZ,
+            x: xArr,
+            y: yArr,
             type: 'contour',
-            colorscale: [
-              [0.0, 'rgba(255,255,255,0)'],
-              [0.2, 'rgba(255,237,160,0.3)'],
-              [0.4, 'rgba(254,217,118,0.4)'],
-              [0.6, 'rgba(254,178,76,0.5)'],
-              [0.8, 'rgba(253,141,60,0.6)'],
-              [1.0, 'rgba(240,59,32,0.8)']
-            ],
+            colorscale: 'YlOrRd',
             contours: {
               coloring: 'heatmap',
               showlines: true,
               start: 0,
-              end: 3,
+              end: 1,
               size: 0.05,
             },
-            x: Array.from({ length: contourZ[0]?.length || 0 }, (_, i) =>
-              xRange[0] + i * (xRange[1] - xRange[0]) / (contourZ[0].length)
-            ),
-            y: Array.from({ length: contourZ.length }, (_, j) =>
-              yRange[0] + j * (yRange[1] - yRange[0]) / (contourZ.length)
-            ),
             showscale: false,
-            opacity: 1.0,
+            opacity: 0.8,
           },
         ]}
         layout={{
