@@ -140,11 +140,11 @@ function MapPage() {
             type: 'contour',
             colorscale: 'YlOrRd',
             contours: {
-              coloring: 'heatmap',
+              coloring: 'lines',
               showlines: true,
               start: zRange[0],
               end: zRange[1],
-              size: Math.max((zRange[1] - zRange[0]) / 15, 0.01),
+              size: Math.max((zRange[1] - zRange[0]) / 10, 0.01),
             },
             showscale: true,
             opacity: 0.5,
