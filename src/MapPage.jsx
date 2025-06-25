@@ -4,8 +4,10 @@ import Papa from 'papaparse';
 
 function MapPage() {
   const [gridData, setGridData] = useState(null);
+  const [wineData, setWineData] = useState([]);
   const [selectedZType, setSelectedZType] = useState("Z_甘味");
 
+  // 等高線グリッド読み込み
   useEffect(() => {
     fetch("/wine_grid_contour.csv")
       .then(res => res.text())
@@ -19,33 +21,42 @@ function MapPage() {
             const x_keys = Object.keys(rows[0]).filter(k => k.startsWith(`${selectedZType}_x`));
             const x_vals = x_keys.map(k => parseFloat(k.split("_x")[1]));
             const z_vals = rows.map(row => x_keys.map(k => row[k]));
-
-            setGridData({ x: x_vals, y: y_vals, z_all: result.data, x_keys });
+            setGridData({ x: x_vals, y: y_vals, z_all: result.data, x_keys, z: z_vals });
           },
         });
       });
   }, []);
 
-  const updateZ = (type) => {
-    setSelectedZType(type);
-    if (!gridData) return;
+  // 打点（ワイン位置）読み込み
+  useEffect(() => {
+    fetch("/wine_data.csv")
+      .then(res => res.text())
+      .then(text => {
+        Papa.parse(text, {
+          header: true,
+          dynamicTyping: true,
+          complete: (result) => {
+            const parsed = result.data.filter(
+              d => Number.isFinite(d.UMAP1) && Number.isFinite(d.UMAP2)
+            );
+            setWineData(parsed);
+          },
+        });
+      });
+  }, []);
 
-    const x_keys = Object.keys(gridData.z_all[0]).filter(k => k.startsWith(`${type}_x`));
+  // Zタイプ変更時の再構築
+  useEffect(() => {
+    if (!gridData) return;
+    const x_keys = Object.keys(gridData.z_all[0]).filter(k => k.startsWith(`${selectedZType}_x`));
     const x_vals = x_keys.map(k => parseFloat(k.split("_x")[1]));
     const z_vals = gridData.z_all.map(row => x_keys.map(k => row[k]));
-
     setGridData(prev => ({
       ...prev,
       x: x_vals,
       x_keys,
-      z_all: prev.z_all,
-      y: prev.y,
-      z: z_vals,
+      z: z_vals
     }));
-  };
-
-  useEffect(() => {
-    if (gridData) updateZ(selectedZType);
   }, [selectedZType]);
 
   return (
@@ -62,6 +73,7 @@ function MapPage() {
       {gridData && gridData.z && (
         <Plot
           data={[
+            // 等高線レイヤー
             {
               x: gridData.x,
               y: gridData.y,
@@ -72,14 +84,29 @@ function MapPage() {
                 coloring: 'heatmap',
                 showlines: true,
               },
-              opacity: 0.8,
+              opacity: 0.6,
               showscale: true,
               name: selectedZType,
+            },
+            // ワインの打点（前面）
+            {
+              x: wineData.map(d => d.UMAP1),
+              y: wineData.map(d => d.UMAP2),
+              text: wineData.map(d => d.商品名),
+              mode: 'markers',
+              type: 'scatter',
+              marker: {
+                size: 7,
+                color: 'black',
+                opacity: 0.9,
+              },
+              name: 'Wine Points',
             },
           ]}
           layout={{
             autosize: true,
             dragmode: 'pan',
+            hovermode: 'closest',
             margin: { t: 40, l: 20, r: 20, b: 20 },
             xaxis: { title: 'UMAP1' },
             yaxis: { title: 'UMAP2' },
