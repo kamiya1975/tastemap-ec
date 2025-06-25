@@ -140,14 +140,14 @@ function MapPage() {
             type: 'contour',
             colorscale: 'YlOrRd',
             contours: {
-              coloring: 'heatmap+lines', // 塗り + 輪郭線
+              coloring: 'lines', // 塗り + 輪郭線
               showlines: true,
               start: zRange[0],
               end: zRange[1],
-              size: Math.max((zRange[1] - zRange[0]) / 10, 0.005),
+              size: 0.02,
             },
             line: {
-              width: 1.5,
+              width: 2.5,
               color: 'black',
             },
             showscale: true,
