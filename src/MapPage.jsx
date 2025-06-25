@@ -9,8 +9,8 @@ function MapPage() {
   const [yArr, setYArr] = useState([]);
   const [xRange, setXRange] = useState([0, 10]);
   const [yRange, setYRange] = useState([0, 10]);
-  const [selectedZKey, setSelectedZKey] = useState("Z_甘味");
   const [zRange, setZRange] = useState([0, 1]);
+  const [selectedZKey, setSelectedZKey] = useState("Z_甘味");
 
   const typeColorMap = {
     Red: 'red',
@@ -26,7 +26,7 @@ function MapPage() {
     if (t.includes('白')) return 'White';
     if (t.includes('ロゼ')) return 'Rose';
     if (t.includes('泡') || t.includes('スパー')) return 'Spa';
-    return t;
+    return 'unknown';
   };
 
   useEffect(() => {
@@ -60,14 +60,16 @@ function MapPage() {
     const gridSize = 100;
     const x = parsed.map(d => d.UMAP1);
     const y = parsed.map(d => d.UMAP2);
-    const z = parsed.map(d => parseFloat(d[key]));
+    const rawZ = parsed.map(d => parseFloat(d[key]));
+    const validZ = rawZ.filter(v => !isNaN(v));
+    const zMin = Math.min(...validZ);
+    const zMax = Math.max(...validZ);
+    setZRange([zMin, zMax]);
 
     const xMin = Math.min(...x), xMax = Math.max(...x);
     const yMin = Math.min(...y), yMax = Math.max(...y);
-    const zMin = Math.min(...z), zMax = Math.max(...z);
     setXRange([xMin, xMax]);
     setYRange([yMin, yMax]);
-    setZRange([zMin, zMax]);
 
     const xStep = (xMax - xMin) / (gridSize - 1);
     const yStep = (yMax - yMin) / (gridSize - 1);
@@ -76,10 +78,12 @@ function MapPage() {
     const countGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
 
     parsed.forEach((row) => {
+      const value = parseFloat(row[key]);
+      if (isNaN(value)) return;
       const xi = Math.floor((row.UMAP1 - xMin) / xStep);
       const yi = Math.floor((row.UMAP2 - yMin) / yStep);
       if (xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
-        densityGrid[yi][xi] += parseFloat(row[key]);
+        densityGrid[yi][xi] += value;
         countGrid[yi][xi] += 1;
       }
     });
@@ -89,14 +93,13 @@ function MapPage() {
         if (countGrid[i][j] > 0) {
           densityGrid[i][j] /= countGrid[i][j];
         } else {
-          densityGrid[i][j] = 0; // null → 0 に変更
+          densityGrid[i][j] = 0;
         }
       }
     }
 
     const xArr = Array.from({ length: gridSize }, (_, i) => xMin + i * xStep);
     const yArr = Array.from({ length: gridSize }, (_, j) => yMin + j * yStep);
-
     setContourZ(densityGrid);
     setXArr(xArr);
     setYArr(yArr);
@@ -124,7 +127,7 @@ function MapPage() {
               mode: 'markers',
               type: 'scatter',
               name: type,
-              marker: { color, size: 7, opacity: 0.7 },
+              marker: { color, size: 7, opacity: 0.6 },
             };
           }),
           {
