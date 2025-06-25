@@ -96,7 +96,7 @@ function MapPage() {
         if (countGrid[i][j] > 0) {
           densityGrid[i][j] /= countGrid[i][j];
         } else {
-          densityGrid[i][j] = 0; // NaNは完全排除
+          densityGrid[i][j] = 0;
         }
       }
     }
@@ -140,14 +140,18 @@ function MapPage() {
             type: 'contour',
             colorscale: 'YlOrRd',
             contours: {
-              coloring: 'lines',
+              coloring: 'heatmap+lines', // 塗り + 輪郭線
               showlines: true,
               start: zRange[0],
               end: zRange[1],
-              size: Math.max((zRange[1] - zRange[0]) / 10, 0.01),
+              size: Math.max((zRange[1] - zRange[0]) / 10, 0.005),
+            },
+            line: {
+              width: 1.5,
+              color: 'black',
             },
             showscale: true,
-            opacity: 0.5,
+            opacity: 0.7,
           },
         ]}
         layout={{
