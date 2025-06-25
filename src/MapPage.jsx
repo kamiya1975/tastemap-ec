@@ -87,7 +87,7 @@ function MapPage() {
         if (countGrid[i][j] > 0) {
           densityGrid[i][j] /= countGrid[i][j];
         } else {
-          densityGrid[i][j] = null; // もしくは 0 でもOK
+          densityGrid[i][j] = 0; // もしくは 0 でもOK
         }
       }
     }
