@@ -10,6 +10,7 @@ function MapPage() {
   const [xRange, setXRange] = useState([0, 10]);
   const [yRange, setYRange] = useState([0, 10]);
   const [selectedZKey, setSelectedZKey] = useState("Z_甘味");
+  const [zRange, setZRange] = useState([0, 1]);
 
   const typeColorMap = {
     Red: 'red',
@@ -63,20 +64,21 @@ function MapPage() {
 
     const xMin = Math.min(...x), xMax = Math.max(...x);
     const yMin = Math.min(...y), yMax = Math.max(...y);
+    const zMin = Math.min(...z), zMax = Math.max(...z);
     setXRange([xMin, xMax]);
     setYRange([yMin, yMax]);
+    setZRange([zMin, zMax]);
 
     const xStep = (xMax - xMin) / (gridSize - 1);
     const yStep = (yMax - yMin) / (gridSize - 1);
 
-    const densityGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
+    const densityGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
     const countGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
 
     parsed.forEach((row) => {
       const xi = Math.floor((row.UMAP1 - xMin) / xStep);
       const yi = Math.floor((row.UMAP2 - yMin) / yStep);
       if (xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
-        if (densityGrid[yi][xi] === null) densityGrid[yi][xi] = 0;
         densityGrid[yi][xi] += parseFloat(row[key]);
         countGrid[yi][xi] += 1;
       }
@@ -87,7 +89,7 @@ function MapPage() {
         if (countGrid[i][j] > 0) {
           densityGrid[i][j] /= countGrid[i][j];
         } else {
-          densityGrid[i][j] = 0; // もしくは 0 でもOK
+          densityGrid[i][j] = 0; // null → 0 に変更
         }
       }
     }
@@ -122,7 +124,7 @@ function MapPage() {
               mode: 'markers',
               type: 'scatter',
               name: type,
-              marker: { color, size: 7, opacity: 0.6 },
+              marker: { color, size: 7, opacity: 0.7 },
             };
           }),
           {
@@ -134,12 +136,12 @@ function MapPage() {
             contours: {
               coloring: 'heatmap',
               showlines: true,
-              start: 0,
-              end: 1,
-              size: 0.05,
+              start: zRange[0],
+              end: zRange[1],
+              size: (zRange[1] - zRange[0]) / 15,
             },
-            showscale: false,
-            opacity: 0.8,
+            showscale: true,
+            opacity: 0.5,
           },
         ]}
         layout={{
