@@ -4,29 +4,6 @@ import Papa from 'papaparse';
 
 function MapPage() {
   const [data, setData] = useState([]);
-  const [contourZ, setContourZ] = useState([]);
-  const [xArr, setXArr] = useState([]);
-  const [yArr, setYArr] = useState([]);
-  const [xRange, setXRange] = useState([0, 10]);
-  const [yRange, setYRange] = useState([0, 10]);
-  const [selectedZKey, setSelectedZKey] = useState("Z_甘味");
-
-  const typeColorMap = {
-    Red: 'red',
-    White: 'green',
-    Rose: 'pink',
-    Spa: 'blue',
-    unknown: 'gray',
-  };
-
-  const normalizeType = (t) => {
-    if (!t || typeof t !== 'string') return 'unknown';
-    if (t.includes('赤')) return 'Red';
-    if (t.includes('白')) return 'White';
-    if (t.includes('ロゼ')) return 'Rose';
-    if (t.includes('泡') || t.includes('スパー')) return 'Spa';
-    return 'unknown';
-  };
 
   useEffect(() => {
     fetch("/wine_data.csv")
@@ -36,128 +13,40 @@ function MapPage() {
           header: true,
           dynamicTyping: true,
           complete: (result) => {
-            const parsed = result.data
-              .filter(d => d.UMAP1 !== undefined && d.UMAP2 !== undefined)
-              .map(d => ({
-                ...d,
-                Type: normalizeType(d.Type),
-              }));
+            const parsed = result.data.filter(d => d.UMAP1 && d.UMAP2);
             setData(parsed);
-            computeContour(parsed, selectedZKey);
           },
         });
       });
   }, []);
 
-  useEffect(() => {
-    if (data.length > 0) {
-      computeContour(data, selectedZKey);
-    }
-  }, [selectedZKey]);
-
-  const computeContour = (parsed, key) => {
-    const gridSize = 100;
-    const x = parsed.map(d => d.UMAP1);
-    const y = parsed.map(d => d.UMAP2);
-    const rawZ = parsed.map(d => parseFloat(d[key]));
-    const validZ = rawZ.filter(v => !isNaN(v) && isFinite(v));
-
-    const xMin = Math.min(...x), xMax = Math.max(...x);
-    const yMin = Math.min(...y), yMax = Math.max(...y);
-    setXRange([xMin, xMax]);
-    setYRange([yMin, yMax]);
-
-    const xStep = (xMax - xMin) / (gridSize - 1);
-    const yStep = (yMax - yMin) / (gridSize - 1);
-
-    const densityGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
-    const countGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
-
-    parsed.forEach((row) => {
-      const value = parseFloat(row[key]);
-      if (isNaN(value) || !isFinite(value)) return;
-      const xi = Math.floor((row.UMAP1 - xMin) / xStep);
-      const yi = Math.floor((row.UMAP2 - yMin) / yStep);
-      if (xi >= 0 && xi < gridSize && yi >= 0 && yi < gridSize) {
-        densityGrid[yi][xi] += value;
-        countGrid[yi][xi] += 1;
-      }
-    });
-
-    for (let i = 0; i < gridSize; i++) {
-      for (let j = 0; j < gridSize; j++) {
-        if (countGrid[i][j] > 0) {
-          densityGrid[i][j] /= countGrid[i][j];
-        } else {
-          densityGrid[i][j] = 0;
-        }
-      }
-    }
-
-    const xArr = Array.from({ length: gridSize }, (_, i) => xMin + i * xStep);
-    const yArr = Array.from({ length: gridSize }, (_, j) => yMin + j * yStep);
-    setContourZ(densityGrid);
-    setXArr(xArr);
-    setYArr(yArr);
-  };
-
-  const zKeys = ["Z_甘味", "Z_渋味", "Z_酸味"];
-
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>ワインマップ（UMAP + {selectedZKey} 等高線：線だけ表示）</h2>
-      <label>等高線項目を選択: </label>
-      <select value={selectedZKey} onChange={(e) => setSelectedZKey(e.target.value)}>
-        {zKeys.map(k => (
-          <option key={k} value={k}>{k.replace("Z_", "")}</option>
-        ))}
-      </select>
-
+    <div style={{ width: '100vw', height: '100vh' }}>
       <Plot
         data={[
-          // マーカー群
-          ...Object.entries(typeColorMap).map(([type, color]) => {
-            const filtered = data.filter(d => d.Type === type);
-            return {
-              x: filtered.map(d => d.UMAP1),
-              y: filtered.map(d => d.UMAP2),
-              mode: 'markers',
-              type: 'scatter',
-              name: type,
-              marker: { color, size: 7, opacity: 0.6 },
-            };
-          }),
-          // 等高線レイヤー（線のみ）
           {
-            z: contourZ,
-            x: xArr,
-            y: yArr,
-            type: 'contour',
-            colorscale: 'Greys',
-            contours: {
-              coloring: 'lines',
-              showlines: true,
-              start: 0.02,
-              end: 0.09,
-              size: 0.015,
+            x: data.map(d => d.UMAP1),
+            y: data.map(d => d.UMAP2),
+            text: data.map(d => d.商品名),
+            mode: 'markers',
+            type: 'scatter',
+            marker: {
+              size: 6,
+              color: 'rgba(100,100,100,0.6)',
             },
-            line: {
-              width: 3,
-              color: 'black',
-            },
-            showscale: false,
-            opacity: 1.0,
           },
         ]}
         layout={{
-          width: 900,
-          height: 700,
-          autosize: false,
-          xaxis: { title: 'UMAP1', range: xRange },
-          yaxis: { title: 'UMAP2', range: yRange },
-          legend: { orientation: "h" },
-          margin: { t: 30 },
+          autosize: true,
+          dragmode: 'pan',
+          hovermode: 'closest',
+          margin: { t: 40, l: 20, r: 20, b: 20 },
+          xaxis: { title: 'UMAP1', zeroline: false },
+          yaxis: { title: 'UMAP2', zeroline: false },
         }}
+        useResizeHandler={true}
+        style={{ width: '100%', height: '100%' }}
+        config={{ responsive: true }}
       />
     </div>
   );
