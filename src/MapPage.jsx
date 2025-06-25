@@ -14,7 +14,9 @@ function MapPage() {
           header: true,
           dynamicTyping: true,
           complete: (result) => {
-            const parsed = result.data.filter(d => d.UMAP1 && d.UMAP2);
+            const parsed = result.data.filter(
+              d => Number.isFinite(d.UMAP1) && Number.isFinite(d.UMAP2)
+            );
             setData(parsed);
           },
         });
@@ -23,7 +25,10 @@ function MapPage() {
 
   const x = data.map(d => d.UMAP1);
   const y = data.map(d => d.UMAP2);
-  const z = data.map(d => parseFloat(d[selectedZKey]));
+  const z = data.map(d => {
+    const val = parseFloat(d[selectedZKey]);
+    return isNaN(val) || !isFinite(val) ? 0 : val;
+  });
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
@@ -44,8 +49,9 @@ function MapPage() {
             mode: 'markers',
             type: 'scatter',
             marker: {
-              size: 6,
-              color: 'rgba(100,100,100,0.6)',
+              size: 8,
+              color: 'black',
+              opacity: 1.0,
             },
             text: data.map(d => d.商品名),
             name: 'Wine',
