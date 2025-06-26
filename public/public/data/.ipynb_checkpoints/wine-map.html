@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wine Map D3 + Canvas</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="mapCanvas"></canvas>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/d3-contour.v2.min.js"></script>
+  <script>
+    // 仮のデータ（100x100グリッド、甘味のZ軸）
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const canvas = document.getElementById('mapCanvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    const gridSize = 100;
+    const data = new Float32Array(gridSize * gridSize);
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        const i = y * gridSize + x;
+        const dx = x - gridSize / 2;
+        const dy = y - gridSize / 2;
+        data[i] = Math.exp(-0.01 * (dx * dx + dy * dy)) + 0.1 * Math.random();
+      }
+    }
+
+    const contours = d3.contours()
+      .size([gridSize, gridSize])
+      .thresholds(d3.range(0.1, 1.0, 0.1))
+      (data);
+
+    const scaleX = d3.scaleLinear().domain([0, gridSize]).range([0, width]);
+    const scaleY = d3.scaleLinear().domain([0, gridSize]).range([0, height]);
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+
+      contours.forEach(contour => {
+        ctx.beginPath();
+        contour.coordinates.forEach(polygon => {
+          polygon.forEach(ring => {
+            ring.forEach(([x, y], i) => {
+              const px = scaleX(x);
+              const py = scaleY(y);
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            });
+          });
+        });
+        ctx.fillStyle = `rgba(255,0,0,${contour.value})`;
+        ctx.fill();
+      });
+
+      // 仮の打点データ
+      const points = [
+        { x: 25, y: 25 },
+        { x: 50, y: 50 },
+        { x: 75, y: 75 },
+      ];
+      points.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(scaleX(p.x), scaleY(p.y), 6, 0, 2 * Math.PI);
+        ctx.fillStyle = 'black';
+        ctx.fill();
+      });
+    }
+
+    draw();
+  </script>
+</body>
+</html>
