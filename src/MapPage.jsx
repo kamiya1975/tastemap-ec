@@ -19,12 +19,17 @@ function MapPage() {
           complete: (result) => {
             const rows = result.data;
 
-            const y = rows.map((row) => row["y"]);
-            const xKeys = Object.keys(rows[0]).filter((k) => k.startsWith("x_"));
-            const x = xKeys.map((k) => parseFloat(k.replace("x_", "")));
-            const z = rows.map((row) => xKeys.map((k) => row[k]));
+            // ✅ xカラムを数値昇順でソート
+            const xKeysSorted = Object.keys(rows[0])
+              .filter((k) => k.startsWith("x_"))
+              .sort((a, b) => {
+                return parseFloat(a.replace("x_", "")) - parseFloat(b.replace("x_", ""));
+              });
 
-            // z 値の最小・最大を計算
+            const x = xKeysSorted.map((k) => parseFloat(k.replace("x_", "")));
+            const y = rows.map((row) => row["y"]);
+            const z = rows.map((row) => xKeysSorted.map((k) => row[k]));
+
             const flatZ = z.flat();
             const zMin = Math.min(...flatZ);
             const zMax = Math.max(...flatZ);
@@ -55,7 +60,7 @@ function MapPage() {
                 showlines: true,
                 start: minZ,
                 end: maxZ,
-                size: (maxZ - minZ) / 10,
+                size: (maxZ - minZ) / 10 || 0.01,
               },
               opacity: 0.8,
               showscale: true,
