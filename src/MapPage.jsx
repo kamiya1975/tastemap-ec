@@ -19,16 +19,20 @@ function MapPage() {
           complete: (result) => {
             const rows = result.data;
 
-            // ✅ xカラムを数値昇順でソート
-            const xKeysSorted = Object.keys(rows[0])
+            // ✅ x列（"x_..."）を抽出し、数値とペアでソート
+            const xKeyPairs = Object.keys(rows[0])
               .filter((k) => k.startsWith("x_"))
-              .sort((a, b) => {
-                return parseFloat(a.replace("x_", "")) - parseFloat(b.replace("x_", ""));
-              });
+              .map((k) => ({
+                key: k,
+                value: parseFloat(k.replace("x_", ""))
+              }))
+              .sort((a, b) => a.value - b.value);
 
-            const x = xKeysSorted.map((k) => parseFloat(k.replace("x_", "")));
-            const y = rows.map((row) => row["y"]);
-            const z = rows.map((row) => xKeysSorted.map((k) => row[k]));
+            const x = xKeyPairs.map(kv => kv.value);
+            const y = rows.map(row => row["y"]);
+            const z = rows.map(row =>
+              xKeyPairs.map(kv => row[kv.key] !== undefined ? row[kv.key] : 0)
+            );
 
             const flatZ = z.flat();
             const zMin = Math.min(...flatZ);
