@@ -1,77 +1,82 @@
-import React, { useEffect, useState } from "react";
-import Plot from "react-plotly.js";
-import wineGridData from "../public/wine_grid_甘味.json";
-import Papa from "papaparse";
+import React, { useState, useEffect } from 'react';
+import Plot from 'react-plotly.js';
 
 function MapPage() {
-  const [scatterPoints, setScatterPoints] = useState([]);
+  const [xVals, setXVals] = useState([]);
+  const [yVals, setYVals] = useState([]);
+  const [zMatrix, setZMatrix] = useState([]);
+  const [selectedContour, setSelectedContour] = useState("甘味");
 
   useEffect(() => {
-    fetch("/wine_data.csv")
-      .then((res) => res.text())
-      .then((csvText) => {
-        Papa.parse(csvText, {
-          header: true,
-          dynamicTyping: true,
-          complete: (result) => {
-            const rows = result.data;
-            const points = rows
-              .filter((row) => !isNaN(row["UMAP1"]) && !isNaN(row["UMAP2"]))
-              .map((row) => ({
-                x: row["UMAP1"],
-                y: row["UMAP2"],
-              }));
-            setScatterPoints(points);
-          },
-        });
+    fetch(`/wine_grid_${selectedContour}.json`)
+      .then((res) => res.json())
+      .then((json) => {
+        setXVals(json.x);
+        setYVals(json.y);
+        setZMatrix(json.z);
       });
-  }, []);
-
-  const x = wineGridData["x"];
-  const y = wineGridData["y"];
-  const z = wineGridData["z"];
+  }, [selectedContour]);
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
-      <Plot
-        data={[
-          {
-            x: x,
-            y: y,
-            z: z,
-            type: "contour",
-            colorscale: "YlOrRd",
-            contours: {
-              coloring: "lines",
-              showlines: true,
-              start: 0,
-              end: 1,
-              size: 0.05,
+      <div style={{ padding: "8px" }}>
+        <label htmlFor="contour-select">等高線項目を選択: </label>
+        <select
+          id="contour-select"
+          value={selectedContour}
+          onChange={(e) => setSelectedContour(e.target.value)}
+        >
+          <option value="甘味">甘味</option>
+          <option value="渋味">渋味</option>
+          <option value="酸味">酸味</option>
+        </select>
+      </div>
+
+      {zMatrix.length > 0 && (
+        <Plot
+          data={[
+            {
+              x: xVals,
+              y: yVals,
+              z: zMatrix,
+              type: "contour",
+              colorscale: "YlOrRd",
+              contours: {
+                coloring: "heatmap",
+                showlines: true,
+                start: 0,
+                end: 1,
+                size: 0.05,
+              },
+              opacity: 0.8,
+              showscale: true,
+              name: selectedContour,
             },
-            opacity: 0.8,
-            showscale: true,
-            name: "Z_甘味",
-          },
-          {
-            x: scatterPoints.map((d) => d.x),
-            y: scatterPoints.map((d) => d.y),
-            type: "scatter",
-            mode: "markers",
-            marker: { color: "black", size: 5, opacity: 0.8 },
-            name: "ワイン打点",
-          },
-        ]}
-        layout={{
-          autosize: true,
-          margin: { t: 40, l: 40, r: 40, b: 40 },
-          xaxis: { title: "UMAP1" },
-          yaxis: { title: "UMAP2" },
-          dragmode: "pan",
-        }}
-        config={{ responsive: true }}
-        useResizeHandler={true}
-        style={{ width: "100%", height: "100%" }}
-      />
+            {
+              x: xVals,
+              y: yVals,
+              mode: 'markers',
+              type: 'scatter',
+              marker: {
+                color: 'black',
+                size: 4,
+                opacity: 0.7,
+              },
+              name: "打点",
+            },
+          ]}
+          layout={{
+            autosize: true,
+            margin: { t: 40, l: 40, r: 40, b: 40 },
+            xaxis: { title: "UMAP1" },
+            yaxis: { title: "UMAP2" },
+            dragmode: "pan",
+          }}
+          config={{ responsive: true }}
+          useResizeHandler={true}
+          style={{ width: "100%", height: "90%" }}
+        />
+      )}
     </div>
   );
 }
