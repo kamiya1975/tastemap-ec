@@ -17,14 +17,23 @@ function MapPage() {
   const z = z_all[selectedZ];
 
   return (
-    <div style={{ width: "100vw", height: "100vh" }}>
-      {/* ドロップダウン */}
-      <div style={{ padding: "10px" }}>
-        <label htmlFor="z-select">Z軸の種類: </label>
+    <div style={{ width: "100vw", height: "100vh", margin: 0, padding: 0, overflow: "hidden" }}>
+      {/* ドロップダウン（上部固定） */}
+      <div style={{
+        position: "absolute",
+        top: "5px",
+        left: "5px",
+        zIndex: 10,
+        backgroundColor: "rgba(255,255,255,0.8)",
+        borderRadius: "6px",
+        padding: "4px 8px"
+      }}>
+        <label htmlFor="z-select" style={{ fontSize: "0.9rem", marginRight: "5px" }}>Z軸の種類:</label>
         <select
           id="z-select"
           value={selectedZ}
           onChange={(e) => setSelectedZ(e.target.value)}
+          style={{ fontSize: "0.9rem" }}
         >
           {Object.keys(z_all).map((key) => (
             <option key={key} value={key}>
@@ -34,10 +43,8 @@ function MapPage() {
         </select>
       </div>
 
-      {/* Plotly描画 */}
       <Plot
         data={[
-          // 等高線
           {
             type: "contour",
             x: x,
@@ -52,35 +59,37 @@ function MapPage() {
               size: 0.05,
             },
             opacity: 0.8,
-            name: selectedZ,
-            showscale: true,
+            showscale: false, // ✅ カラーバーを非表示
+            hoverinfo: "none",
           },
-          // 打点（ワイン）
           {
             type: "scatter",
             mode: "markers",
             x: scatterPoints.map((p) => p.x),
             y: scatterPoints.map((p) => p.y),
-            text: scatterPoints.map((p) => `${p.商品名} (${p.JAN})`),
             marker: {
               color: "black",
               size: 5,
-              opacity: 0.6,
+              opacity: 0.5,
             },
-            name: "ワイン打点",
-            hoverinfo: "text",
+            hoverinfo: "skip",
+            showlegend: false,
           },
         ]}
         layout={{
           autosize: true,
-          margin: { t: 40, l: 40, r: 40, b: 40 },
-          xaxis: { title: "UMAP1" },
-          yaxis: { title: "UMAP2" },
+          margin: { t: 0, l: 0, r: 0, b: 0 },
+          xaxis: { visible: false },
+          yaxis: { visible: false },
           dragmode: "pan",
         }}
-        config={{ responsive: true }}
+        config={{
+          displayModeBar: false,       // ✅ ズーム/カメラなどUIを非表示
+          scrollZoom: true,            // ✅ スクロールで拡大縮小
+          responsive: true,
+        }}
         useResizeHandler={true}
-        style={{ width: "100%", height: "90%" }}
+        style={{ width: "100%", height: "100%" }}
       />
     </div>
   );
