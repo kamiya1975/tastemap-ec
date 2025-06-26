@@ -6,6 +6,8 @@ function MapPage() {
   const [xVals, setXVals] = useState([]);
   const [yVals, setYVals] = useState([]);
   const [zMatrix, setZMatrix] = useState([]);
+  const [scatterX, setScatterX] = useState([]);
+  const [scatterY, setScatterY] = useState([]);
 
   useEffect(() => {
     fetch("/wine_grid_final_甘味.csv")
@@ -15,19 +17,14 @@ function MapPage() {
           header: true,
           dynamicTyping: true,
           complete: (result) => {
-            const rows = result.data.filter(row => row["y"] !== undefined);
+            const rows = result.data.filter(row => row["y"] !== undefined && !isNaN(row["y"]));
 
-            // y 軸値
             const yRaw = rows.map(row => row["y"]);
-
-            // x 軸名の抽出
             const xKeys = Object.keys(rows[0]).filter(k => k.startsWith("x_"));
             const xRaw = xKeys.map(k => parseFloat(k.replace("x_", "")));
-
-            // z 行列
             const zRaw = rows.map(row => xKeys.map(k => row[k]));
 
-            // ✅ min-max スケーリング関数
+            // ✅ min-maxスケーリング
             const scaleTo100 = (arr) => {
               const flat = arr.flat();
               const min = Math.min(...flat);
@@ -35,13 +32,29 @@ function MapPage() {
               return arr.map(row => row.map(v => (v - min) / (max - min) * 100));
             };
 
+            const scale1D = (arr) => {
+              const min = Math.min(...arr);
+              const max = Math.max(...arr);
+              return arr.map(v => (v - min) / (max - min) * 100);
+            };
+
+            const scaledX = scale1D(xRaw);
+            const scaledY = scale1D(yRaw);
             const scaledZ = scaleTo100(zRaw);
-            const scaledX = xRaw.map((v, _, arr) => (v - Math.min(...arr)) / (Math.max(...arr) - Math.min(...arr)) * 100);
-            const scaledY = yRaw.map((v, _, arr) => (v - Math.min(...arr)) / (Math.max(...arr) - Math.min(...arr)) * 100);
 
             setXVals(scaledX);
             setYVals(scaledY);
             setZMatrix(scaledZ);
+
+            // ✅ 打点位置（確認用）– 元の raw 点を x-y に変換して scatter 表示
+            const scatterPoints = [];
+            for (let i = 0; i < scaledY.length; i++) {
+              for (let j = 0; j < scaledX.length; j++) {
+                scatterPoints.push({ x: scaledX[j], y: scaledY[i] });
+              }
+            }
+            setScatterX(scatterPoints.map(p => p.x));
+            setScatterY(scatterPoints.map(p => p.y));
           }
         });
       });
@@ -62,16 +75,27 @@ function MapPage() {
                 coloring: "heatmap",
                 showlines: true,
               },
-              opacity: 0.8,
+              opacity: 0.7,
               showscale: true,
               name: "Z_甘味",
             },
+            {
+              x: scatterX,
+              y: scatterY,
+              type: "scatter",
+              mode: "markers",
+              marker: {
+                size: 4,
+                color: "black"
+              },
+              name: "打点確認"
+            }
           ]}
           layout={{
             autosize: true,
             margin: { t: 40, l: 40, r: 40, b: 40 },
-            xaxis: { title: "UMAP1" },
-            yaxis: { title: "UMAP2" },
+            xaxis: { title: "UMAP1 (scaled)" },
+            yaxis: { title: "UMAP2 (scaled)" },
             dragmode: "pan",
           }}
           config={{ responsive: true }}
@@ -84,4 +108,3 @@ function MapPage() {
 }
 
 export default MapPage;
-
