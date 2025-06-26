@@ -85,7 +85,7 @@ function MapPage() {
                 showlines: true,
                 start: 0,
                 end: 1.0,
-                size: 0.05
+                size: 0.001
               },
               opacity: 0.6,
               showscale: true,
