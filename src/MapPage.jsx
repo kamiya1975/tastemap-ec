@@ -81,8 +81,11 @@ function MapPage() {
               type: 'contour',
               colorscale: 'YlOrRd',
               contours: {
-                coloring: 'heatmap',
+                coloring: 'lines',
                 showlines: true,
+                start: 0,
+                end: 1.0,
+                size: 0.05
               },
               opacity: 0.6,
               showscale: true,
