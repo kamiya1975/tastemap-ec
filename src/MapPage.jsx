@@ -6,6 +6,8 @@ function MapPage() {
   const [xVals, setXVals] = useState([]);
   const [yVals, setYVals] = useState([]);
   const [zMatrix, setZMatrix] = useState([]);
+  const [minZ, setMinZ] = useState(0);
+  const [maxZ, setMaxZ] = useState(1);
 
   useEffect(() => {
     fetch("/wine_grid_final_甘味.csv")
@@ -17,19 +19,21 @@ function MapPage() {
           complete: (result) => {
             const rows = result.data;
 
-            // y軸は行の 'y' 値
             const y = rows.map((row) => row["y"]);
-
-            // x軸はカラム名から取得（"x_..."）
             const xKeys = Object.keys(rows[0]).filter((k) => k.startsWith("x_"));
             const x = xKeys.map((k) => parseFloat(k.replace("x_", "")));
-
-            // z行列（y行 × x列）
             const z = rows.map((row) => xKeys.map((k) => row[k]));
+
+            // z 値の最小・最大を計算
+            const flatZ = z.flat();
+            const zMin = Math.min(...flatZ);
+            const zMax = Math.max(...flatZ);
 
             setXVals(x);
             setYVals(y);
             setZMatrix(z);
+            setMinZ(zMin);
+            setMaxZ(zMax);
           },
         });
       });
