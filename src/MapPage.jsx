@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from "react";
-import Plot from "react-plotly.js";
-import Papa from "papaparse";
+import React, { useState, useEffect } from 'react';
+import Plot from 'react-plotly.js';
+import Papa from 'papaparse';
 
 function MapPage() {
   const [xVals, setXVals] = useState([]);
   const [yVals, setYVals] = useState([]);
   const [zMatrix, setZMatrix] = useState([]);
-  const [minZ, setMinZ] = useState(0);
-  const [maxZ, setMaxZ] = useState(1);
 
   useEffect(() => {
     fetch("/wine_grid_final_甘味.csv")
@@ -17,33 +15,34 @@ function MapPage() {
           header: true,
           dynamicTyping: true,
           complete: (result) => {
-            const rows = result.data.filter((r) => Object.keys(r).length > 0);
+            const rows = result.data.filter(row => row["y"] !== undefined);
 
-            const y = rows.map((row) => parseFloat(row["y"]));
+            // y 軸値
+            const yRaw = rows.map(row => row["y"]);
 
-            const xKeys = Object.keys(rows[0]).filter((k) => k.startsWith("x_"));
-            const x = xKeys.map((k) => parseFloat(k.replace("x_", "")));
+            // x 軸名の抽出
+            const xKeys = Object.keys(rows[0]).filter(k => k.startsWith("x_"));
+            const xRaw = xKeys.map(k => parseFloat(k.replace("x_", "")));
 
-            const z = rows.map((row) =>
-              xKeys.map((k) => parseFloat(row[k]))
-            );
+            // z 行列
+            const zRaw = rows.map(row => xKeys.map(k => row[k]));
 
-            // 最小・最大Z値
-            const flatZ = z.flat();
-            const min = Math.min(...flatZ);
-            const max = Math.max(...flatZ);
+            // ✅ min-max スケーリング関数
+            const scaleTo100 = (arr) => {
+              const flat = arr.flat();
+              const min = Math.min(...flat);
+              const max = Math.max(...flat);
+              return arr.map(row => row.map(v => (v - min) / (max - min) * 100));
+            };
 
-            setXVals(x);
-            setYVals(y);
-            setZMatrix(z.reverse()); // 反転表示（必要に応じて）
-            setMinZ(min);
-            setMaxZ(max);
+            const scaledZ = scaleTo100(zRaw);
+            const scaledX = xRaw.map((v, _, arr) => (v - Math.min(...arr)) / (Math.max(...arr) - Math.min(...arr)) * 100);
+            const scaledY = yRaw.map((v, _, arr) => (v - Math.min(...arr)) / (Math.max(...arr) - Math.min(...arr)) * 100);
 
-            console.log("x.length:", x.length);
-            console.log("y.length:", y.length);
-            console.log("z shape:", z.length, z[0]?.length);
-            console.log("minZ:", min, "maxZ:", max);
-          },
+            setXVals(scaledX);
+            setYVals(scaledY);
+            setZMatrix(scaledZ);
+          }
         });
       });
   }, []);
@@ -60,13 +59,10 @@ function MapPage() {
               type: "contour",
               colorscale: "YlOrRd",
               contours: {
-                coloring: "lines", // ✅ 等高線を「線のみ」で表示
+                coloring: "heatmap",
                 showlines: true,
-                start: minZ,
-                end: maxZ,
-                size: (maxZ - minZ) / 10,
               },
-              opacity: 0.9,
+              opacity: 0.8,
               showscale: true,
               name: "Z_甘味",
             },
@@ -88,3 +84,4 @@ function MapPage() {
 }
 
 export default MapPage;
+
