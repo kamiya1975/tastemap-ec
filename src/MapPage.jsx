@@ -60,7 +60,7 @@ function MapPage() {
               type: "contour",
               colorscale: "YlOrRd",
               contours: {
-                coloring: "heatmap",
+                coloring: "lines",
                 showlines: true,
                 start: minZ,
                 end: maxZ,
