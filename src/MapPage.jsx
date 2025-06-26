@@ -49,9 +49,9 @@ function MapPage() {
               contours: {
                 coloring: "heatmap",
                 showlines: true,
-                start: 0,
-                end: 1.0,
-                size: 0.05,
+                start: minZ,
+                end: maxZ,
+                size: (maxZ - minZ) / 10,
               },
               opacity: 0.8,
               showscale: true,
