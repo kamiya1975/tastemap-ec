@@ -5,13 +5,10 @@ function MapPage() {
   const [gridData, setGridData] = useState(null);
   const [selectedZ, setSelectedZ] = useState("Z_甘味");
 
-  // データ読み込み
   useEffect(() => {
     fetch("/wine_grid_all.json")
       .then((res) => res.json())
-      .then((data) => {
-        setGridData(data);
-      });
+      .then((data) => setGridData(data));
   }, []);
 
   if (!gridData) return <div>Loading...</div>;
@@ -21,7 +18,7 @@ function MapPage() {
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
-      {/* Z軸選択ドロップダウン */}
+      {/* Z軸選択 */}
       <div style={{ padding: "10px" }}>
         <label htmlFor="z-select">Z軸の種類: </label>
         <select
@@ -29,53 +26,41 @@ function MapPage() {
           value={selectedZ}
           onChange={(e) => setSelectedZ(e.target.value)}
         >
-          {Object.keys(z_all).map((zKey) => (
-            <option key={zKey} value={zKey}>
-              {zKey}
+          {Object.keys(z_all).map((key) => (
+            <option key={key} value={key}>
+              {key}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Plotly グラフ */}
+      {/* グラフ描画 */}
       <Plot
         data={[
           {
-            x: x,
-            y: y,
-            z: z,
             type: "contour",
+            x: x,          // xは100個の等間隔値
+            y: y,          // yも同様
+            z: z,          // zは [100][100] の2D配列
             colorscale: "YlOrRd",
             contours: {
               coloring: "heatmap",
               showlines: true,
               start: 0,
               end: 1,
-              size: 0.05,
+              size: 0.05
             },
-            opacity: 0.7,
+            opacity: 0.8,
             name: selectedZ,
-            showscale: true,
-          },
-          {
-            x: x,
-            y: y,
-            mode: "markers",
-            type: "scatter",
-            marker: {
-              color: "black",
-              size: 5,
-              opacity: 0.6,
-            },
-            name: "ワイン打点",
-          },
+            showscale: true
+          }
         ]}
         layout={{
           autosize: true,
           margin: { t: 40, l: 40, r: 40, b: 40 },
           xaxis: { title: "UMAP1" },
           yaxis: { title: "UMAP2" },
-          dragmode: "pan",
+          dragmode: "pan"
         }}
         config={{ responsive: true }}
         useResizeHandler={true}
