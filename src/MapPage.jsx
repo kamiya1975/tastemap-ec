@@ -17,8 +17,14 @@ function MapPage() {
   const z = z_all[selectedZ];
 
   return (
-    <div style={{ width: "100vw", height: "100vh", margin: 0, padding: 0, overflow: "hidden" }}>
-      {/* ドロップダウン（上部固定） */}
+    <div style={{
+      width: "100vw",
+      height: "100vh",
+      margin: 0,
+      padding: 0,
+      overflow: "hidden",
+      touchAction: "none" // ✅ ピンチズーム許可
+    }}>
       <div style={{
         position: "absolute",
         top: "5px",
@@ -59,7 +65,7 @@ function MapPage() {
               size: 0.05,
             },
             opacity: 0.8,
-            showscale: false, // ✅ カラーバーを非表示
+            showscale: false,
             hoverinfo: "none",
           },
           {
@@ -84,9 +90,9 @@ function MapPage() {
           dragmode: "pan",
         }}
         config={{
-          displayModeBar: false,       // ✅ ズーム/カメラなどUIを非表示
-          scrollZoom: true,            // ✅ スクロールで拡大縮小
           responsive: true,
+          scrollZoom: true, // ✅ ピンチズームを許可
+          displayModeBar: false
         }}
         useResizeHandler={true}
         style={{ width: "100%", height: "100%" }}
@@ -96,3 +102,4 @@ function MapPage() {
 }
 
 export default MapPage;
+
