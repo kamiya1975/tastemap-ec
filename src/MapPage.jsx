@@ -1,102 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import Papa from 'papaparse';
 
 function MapPage() {
-  const [xVals, setXVals] = useState([]);
-  const [yVals, setYVals] = useState([]);
-  const [zMatrix, setZMatrix] = useState([]);
-  const [scatterX, setScatterX] = useState([]);
-  const [scatterY, setScatterY] = useState([]);
+  const [x, setX] = useState([]);
+  const [y, setY] = useState([]);
+  const [z, setZ] = useState([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch("/wine_grid_final_甘味.csv")
-      .then((res) => res.text())
-      .then((csvText) => {
-        Papa.parse(csvText, {
-          header: true,
-          dynamicTyping: true,
-          complete: (result) => {
-            const rows = result.data.filter(row => row["y"] !== undefined && !isNaN(row["y"]));
+    fetch('/wine_grid_甘味.json')
+      .then((res) => res.json())
+      .then((data) => {
+        const xData = data.x;
+        const yData = data.y;
+        const zData = data.z;
 
-            const yRaw = rows.map(row => row["y"]);
-            const xKeys = Object.keys(rows[0]).filter(k => k.startsWith("x_"));
-            const xRaw = xKeys.map(k => parseFloat(k.replace("x_", "")));
-            const zRaw = rows.map(row => xKeys.map(k => row[k]));
+        // 数値型かどうかを保証（文字列なら parse）
+        const parsedX = xData.map(Number);
+        const parsedY = yData.map(Number);
+        const parsedZ = zData.map(row => row.map(Number));
 
-            // ✅ min-maxスケーリング
-            const scaleTo100 = (arr) => {
-              const flat = arr.flat();
-              const min = Math.min(...flat);
-              const max = Math.max(...flat);
-              return arr.map(row => row.map(v => (v - min) / (max - min) * 100));
-            };
-
-            const scale1D = (arr) => {
-              const min = Math.min(...arr);
-              const max = Math.max(...arr);
-              return arr.map(v => (v - min) / (max - min) * 100);
-            };
-
-            const scaledX = scale1D(xRaw);
-            const scaledY = scale1D(yRaw);
-            const scaledZ = scaleTo100(zRaw);
-
-            setXVals(scaledX);
-            setYVals(scaledY);
-            setZMatrix(scaledZ);
-
-            // ✅ 打点位置（確認用）– 元の raw 点を x-y に変換して scatter 表示
-            const scatterPoints = [];
-            for (let i = 0; i < scaledY.length; i++) {
-              for (let j = 0; j < scaledX.length; j++) {
-                scatterPoints.push({ x: scaledX[j], y: scaledY[i] });
-              }
-            }
-            setScatterX(scatterPoints.map(p => p.x));
-            setScatterY(scatterPoints.map(p => p.y));
-          }
-        });
+        setX(parsedX);
+        setY(parsedY);
+        setZ(parsedZ);
+        setLoaded(true);
       });
   }, []);
 
   return (
-    <div style={{ width: "100vw", height: "100vh" }}>
-      {zMatrix.length > 0 && (
+    <div style={{ width: '100vw', height: '100vh' }}>
+      {loaded && (
         <Plot
           data={[
             {
-              x: xVals,
-              y: yVals,
-              z: zMatrix,
-              type: "contour",
-              colorscale: "YlOrRd",
+              x: x,
+              y: y,
+              z: z,
+              type: 'contour',
+              colorscale: 'YlOrRd',
               contours: {
-                coloring: "heatmap",
-                showlines: true,
+                coloring: 'heatmap',
+                showlines: true
               },
-              opacity: 0.7,
               showscale: true,
-              name: "Z_甘味",
-            },
-            {
-              x: scatterX,
-              y: scatterY,
-              type: "scatter",
-              mode: "markers",
-              marker: {
-                size: 4,
-                color: "black"
-              },
-              name: "打点確認"
+              zmin: 0,         // 強制スケール調整（必要なら）
+              zmax: 1.0
             }
           ]}
           layout={{
+            title: '甘味 等高線マップ',
             autosize: true,
             margin: { t: 40, l: 40, r: 40, b: 40 },
-            xaxis: { title: "UMAP1 (scaled)" },
-            yaxis: { title: "UMAP2 (scaled)" },
-            dragmode: "pan",
+            xaxis: { title: 'UMAP1' },
+            yaxis: { title: 'UMAP2' },
           }}
           config={{ responsive: true }}
           useResizeHandler={true}
