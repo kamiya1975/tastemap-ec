@@ -42,7 +42,7 @@ function MapPage() {
             type: "contour",
             colorscale: "YlOrRd",
             contours: {
-              coloring: "heatmap",
+              coloring: "lines",
               showlines: true,
               start: 0,
               end: 1,
