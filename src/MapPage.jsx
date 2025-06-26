@@ -1,50 +1,38 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import Plot from "react-plotly.js";
+import wineGridData from "../public/wine_grid_all_with_scatter.json";
 
 function MapPage() {
-  const [gridData, setGridData] = useState(null);
   const [selectedZ, setSelectedZ] = useState("Z_甘味");
 
+  // 🔧 gestureイベント防止（iOSでのピンチガクガク対策）
   useEffect(() => {
-    fetch("/wine_grid_all_with_scatter.json")
-      .then((res) => res.json())
-      .then((data) => setGridData(data));
+    const preventZoom = (e) => {
+      if (e.touches.length > 1) e.preventDefault();
+    };
+    document.addEventListener("touchmove", preventZoom, { passive: false });
+    return () => {
+      document.removeEventListener("touchmove", preventZoom);
+    };
   }, []);
 
-  if (!gridData) return <div>Loading...</div>;
+  // 🔧 Z軸選択肢
+  const zOptions = Object.keys(wineGridData.z_all || {});
 
-  const { x, y, z_all, scatterPoints } = gridData;
-  const z = z_all[selectedZ];
+  const z = wineGridData.z_all[selectedZ];
+  const x = wineGridData.x;
+  const y = wineGridData.y;
+
+  const scatterX = wineGridData.scatter?.x || [];
+  const scatterY = wineGridData.scatter?.y || [];
 
   return (
-    <div style={{
-      width: "100vw",
-      height: "100vh",
-      margin: 0,
-      padding: 0,
-      overflow: "hidden",
-      touchAction: "none" // ✅ ピンチズーム許可
-    }}>
-      <div style={{
-        position: "absolute",
-        top: "5px",
-        left: "5px",
-        zIndex: 10,
-        backgroundColor: "rgba(255,255,255,0.8)",
-        borderRadius: "6px",
-        padding: "4px 8px"
-      }}>
-        <label htmlFor="z-select" style={{ fontSize: "0.9rem", marginRight: "5px" }}>Z軸の種類:</label>
-        <select
-          id="z-select"
-          value={selectedZ}
-          onChange={(e) => setSelectedZ(e.target.value)}
-          style={{ fontSize: "0.9rem" }}
-        >
-          {Object.keys(z_all).map((key) => (
-            <option key={key} value={key}>
-              {key}
-            </option>
+    <div style={{ width: "100vw", height: "100vh", overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: 10, left: 10, zIndex: 10 }}>
+        <label>Z軸の種類：</label>
+        <select value={selectedZ} onChange={(e) => setSelectedZ(e.target.value)}>
+          {zOptions.map((zName) => (
+            <option key={zName} value={zName}>{zName}</option>
           ))}
         </select>
       </div>
@@ -52,10 +40,10 @@ function MapPage() {
       <Plot
         data={[
           {
-            type: "contour",
             x: x,
             y: y,
             z: z,
+            type: "contour",
             colorscale: "YlOrRd",
             contours: {
               coloring: "heatmap",
@@ -64,22 +52,21 @@ function MapPage() {
               end: 1,
               size: 0.05,
             },
-            opacity: 0.8,
-            showscale: false,
-            hoverinfo: "none",
+            opacity: 0.9,
+            showscale: true,
+            name: selectedZ,
           },
           {
+            x: scatterX,
+            y: scatterY,
             type: "scatter",
             mode: "markers",
-            x: scatterPoints.map((p) => p.x),
-            y: scatterPoints.map((p) => p.y),
             marker: {
               color: "black",
               size: 5,
-              opacity: 0.5,
+              opacity: 0.7,
             },
-            hoverinfo: "skip",
-            showlegend: false,
+            name: "打点",
           },
         ]}
         layout={{
@@ -91,15 +78,15 @@ function MapPage() {
         }}
         config={{
           responsive: true,
-          scrollZoom: true, // ✅ ピンチズームを許可
-          displayModeBar: false
+          scrollZoom: true,
+          displayModeBar: false,
+          doubleClick: false,
         }}
+        style={{ width: "100%", height: "100%", touchAction: "none" }}
         useResizeHandler={true}
-        style={{ width: "100%", height: "100%" }}
       />
     </div>
   );
 }
 
 export default MapPage;
-
